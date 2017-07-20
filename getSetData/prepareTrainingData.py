@@ -6,10 +6,19 @@ import numpy as np
 import sys
 import os
 import subprocess
+import platform
+
 
 
 worktDir_ = '';
 TrainFolder = '\\..\\..\\train_data';
+sysstr = platform.system();
+print(sysstr);
+if sysstr == "Windows":
+	pass;
+else:
+	TrainFolder = '/../../train_data';
+
 def readImage(fileName):
 	img = cv.imread(fileName);
 	return img;
@@ -35,10 +44,30 @@ def main(argv):
 	print(oriImg.shape);
 	print(oriImg.size);
 	print(oriImg.dtype);
-	regionsImage = np.zeros(correctImg.shape,np.int8);
+	regionsImage = np.zeros(correctImg.shape,dtype=np.uint8);
 
-	for x in range(1,10):
-		pass
+	sumNum_R = 0.0;
+	sumNum_G = 0.0;
+	sumNum_B = 0.0;
+
+	sumNum_R += oriImg[0,0,0];
+	sumNum_G += oriImg[0,0,1];
+	sumNum_B += oriImg[0,0,3];
+
+	for width in range(0,oriImg.shape[0]):
+		for height in range(0,oriImg.shape[1]):
+			# print("pixel data is ",oriImg[width,height]);
+			if (correctImg[width,height]==np.array([0,0,0])).all():
+				print(correctImg[width,height]);
+				regionsImage[width,height] = oriImg[width,height];
+				pass;
+			elif (oriImg[width,height]==correctImg[width,height]).all():
+				sumNum
+				
+				pass;
+			elif (correctImg[width,height]==np.array([0,0,0])).all():
+				pass;
+
 
 
 	cv.namedWindow('correctImg',cv.WINDOW_NORMAL);
@@ -51,4 +80,4 @@ def main(argv):
 
 
 if __name__ == '__main__':
-    main(sys.argv)
+   main(sys.argv)
