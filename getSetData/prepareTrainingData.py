@@ -1,6 +1,5 @@
 #!/usr/bin/python
 # -*- coding: UTF-8 -*- 
-
 import cv2 as cv
 import numpy as np
 import sys
@@ -8,90 +7,62 @@ import os
 import subprocess
 import platform
 
+import globalVal as gl
+import processOneImage as ps
 
+def scanTrainFolder(folderFullName):
+	targetFileName = [];
+	fileNameList = [];
+	returnDict = {};
+	for parent,dirnames,filenames in os.walk(folderFullName):
+		for filename in filenames:
+			filePrex = filename.split(".")[0];
+			index = filePrex.find("_correct");
+			if index==-1:
+				targetFileName.append(filePrex);
+			fileNameList.append(filePrex);
+	
+	for filename in targetFileName:
+		for x in fileNameList:
+			if filename+"_correct" == x:
+				returnDict[filename+'.bmp'] = x+'.bmp';
+		
+	return returnDict;
 
-worktDir_ = '';
-TrainFolder = '\\..\\..\\train_data';
-TextFolder = '\\..\\..\\markedRegionsText\\';
-sysstr = platform.system();
-print(sysstr);
-if sysstr == "Windows":
-	pass;
-else:
-	TrainFolder = '/../../train_data';
-
-def readImage(fileName):
-	img = cv.imread(fileName);
-	return img;
 
 def main(argv):
-	global worktDir_;
-	worktDir_ = os.path.dirname(argv[0]);
-	print(worktDir_);
-	global TrainFolder;
-	TrainFolder = worktDir_+TrainFolder;
-	os.chdir(TrainFolder);
+	gl.initDir(argv);
+	# print(gl.worktDir_);
+	img = cv.imread(r'C:\Users\kitrol\Desktop\moto_1.bmp');
+	ret,img = cv.threshold(img,0,255,cv.THRESH_BINARY); # 反转颜色 黑色区域变白，其他区域变黑 CV_THRESH_BINARY_INV|CV_THRESH_OTSU
+	check_img = np.zeros(img.shape,img.dtype);
+	check_img[::] = 255;
+	# check = np.zeros((5,5,3),img.dtype);
+
+	
+	ps.showImageInWindow('1',10000,img);
+
+	# pairs = scanTrainFolder(gl.TrainFolder);
+	# print(pairs);
+	# # orgImageName = "JF14_091_S8_HE.bmp";
+	# # correctImageName = "JF14_091_S8_HE_correct.bmp";
+	# # ps.processOneTrainImage(orgImageName,correctImageName);
+	# for (original,corrent) in pairs.items():
+	# 	ps.processOneTrainImage(orgImageName,correctImageName);
 
 
+	# result = {"meanArray":[123,456,223],"variance":[12,56,123]};
+	# print(str(result));
+	# file = open(gl.worktDir_+gl.TextFolder+"testOutput.txt", "w+");
+	# file.write(str(result));
+	# file.close();
 
-	oriImg = readImage('JF14_091_S8_HE.bmp');
-	correctImg = readImage('JF14_091_S8_HE_correct.bmp');
-	# regionsImage = np.zeros();
-	print(correctImg.shape);
-	print(correctImg.size);
-	print(correctImg.dtype);
-
-
-	print(oriImg.shape);
-	print(oriImg.size);
-	print(oriImg.dtype);
-	regionsImage = np.zeros(correctImg.shape,dtype=np.uint8);
-
-	sumNum_R = 0.0;
-	sumNum_G = 0.0;
-	sumNum_B = 0.0;
-	pixels = 0;
-	markedColors = [];
-
-	for width in range(0,oriImg.shape[0]):
-		for height in range(0,oriImg.shape[1]):
-			pixels += 1;
-			sumNum_R = oriImg[width,height,0];
-			sumNum_G = oriImg[width,height,1];
-			sumNum_B = oriImg[width,height,2];
-			if (pixels==2):
-				sumNum_R = sumNum_R/2;
-				sumNum_G = sumNum_G/2;
-				sumNum_B = sumNum_B/2;
-				pass;
-			elif pixels>2:
-				sumNum_R = sumNum_R/2;
-				sumNum_G = sumNum_G/2;
-				sumNum_B = sumNum_B/2;
-				pass;
-
-			if (correctImg[width,height]==np.array([0,0,0])).all():
-				# print(correctImg[width,height]);
-				regionsImage[width,height] = oriImg[width,height];
-				markedColors.append((regionsImage[width,height,0],regionsImage[width,height,1],regionsImage[width,height,2])); #  output for average caculate
-	print("average color is R:%f  G:%f  B:%f \n" % (sumNum_R,sumNum_G,sumNum_B));
-	print(markedColors[:10]);
-
-	global TextFolder;
-	markedRegionColorFile = open( worktDir_+TextFolder+"markedRegionsText.txt", "wb");
-	for index in range(len(markedColors)):
-		string = "%d %d %d\\n"%(markedColors[index][0],markedColors[index][1],markedColors[index][2]);
-		markedRegionColorFile.write(string);
-	markedRegionColorFile.close();
-
-	cv.namedWindow('correctImg',cv.WINDOW_NORMAL);
-	cv.imshow('correctImg',correctImg);
-	# os.getcwd();
-	# listfile=os.listdir(os.getcwd());
-	# print(listfile);
-	cv.waitKey(10000);
-	cv.destroyAllWindows();
-
+	# file = open(gl.worktDir_+gl.TextFolder+"testOutput.txt", "r");
+	# string = file.read();
+	# dict_1 = eval(string);
+	# print(dict_1);
+	# file.close();
+	# print(type(dict_1['meanArray'][0]));
 
 if __name__ == '__main__':
    main(sys.argv)
