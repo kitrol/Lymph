@@ -2,10 +2,11 @@ import platform
 import os
 
 
-
+THRESHOLD = 4;
 worktDir_ = '';
 TrainFolder = '\\..\\..\\train_data';
 TextFolder = '\\..\\..\\markedRegionsText\\';
+newTestFolder = '\\..\\..\\newTestData\\';
 
 def initDir(argv):
 	global worktDir_;
@@ -17,7 +18,8 @@ def initDir(argv):
 	else:
 		TrainFolder = '/../../train_data';
 		TextFolder = '/../../markedRegionsText/';
+		newTestFolder = '/../../newTestData/' 
 	worktDir_ = os.path.dirname(argv[0]);
-	print("Woring dir is ",worktDir_);
+	print("Working Dir is ",worktDir_);
 	TrainFolder = worktDir_+TrainFolder;
 	os.chdir(TrainFolder);

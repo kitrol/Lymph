@@ -2,6 +2,11 @@ import cv2 as cv
 import numpy as np
 import globalVal as gl
 
+def erodeOrin(oriImg,erodeMask):
+	for width in range(0,oriImg.shape[0]):
+		for height in range(0,oriImg.shape[1]):
+			if (erodeMask[width,height]==np.array([0,0,0])).all():
+				oriImg[width,height] = np.array([0,0,0]);
 
 def showImageInWindow(windowName,time,image):
 	cv.namedWindow(windowName,cv.WINDOW_NORMAL);
@@ -29,7 +34,8 @@ def caculateAverageAndVarianceForRGB(numpyArray):
 	meanArray[:,2] = meanValue[2];
 	temp = (numpyArray-meanArray)**2;
 	variance = np.array([temp[:,0].sum(),temp[:,1].sum(),temp[:,2].sum()],dtype=np.float)/lines;
-	result = {"meanArray":meanValue,"variance":variance};
+	standardDeviation = variance**(1/2);
+	result = {"meanArray":list(meanValue),"variance":list(variance),"standardDeviation":list(standardDeviation)};
 	return result;
 
 def wirteRGBToFile(targetFileName,rgbData):
@@ -47,15 +53,20 @@ def writeStringToFile(targetFileName,stringData):
 	pass
 
 def processOneTrainImage(trainImageName,correctImageName):
-	global TrainFolder;
-	global TextFolder;
-	global worktDir_;
+	print("processOneTrainImage  start for Image: "+trainImageName);
 	oriImg = readImage(trainImageName);
 	correctImg = readImage(correctImageName);
 	imageName_ = trainImageName.split('.')[0];
 
-	regionsImage = np.zeros(correctImg.shape,dtype=np.uint8);
-	maskImage = np.zeros(correctImg.shape,dtype=np.uint8);
+	print("processOneTrainImage  ***erode marked regions*** for Image: "+trainImageName);
+	ret,img_gray = cv.threshold(correctImg,0,255,cv.THRESH_BINARY); # gray image for marked regions still be black
+	kernel = np.ones((5,5),np.uint8);
+	img_gray_erode = cv.erode(img_gray,kernel,iterations=1);  # expand the edge for marked regions
+	erodeOrin(correctImg,img_gray_erode);
+
+	print("processOneTrainImage  marked regions for Image: "+trainImageName);
+	# regionsImage = np.zeros(correctImg.shape,dtype=np.uint8);  # regions with color and bg is black
+	maskImage = np.zeros(correctImg.shape,dtype=np.uint8);    # regions with color and bg is white
 	maskImage[::] = 255;
 	markedColors = [];
 	notWhiteColors = [];
@@ -64,18 +75,21 @@ def processOneTrainImage(trainImageName,correctImageName):
 		for height in range(0,oriImg.shape[1]):
 			if (correctImg[width,height]==np.array([0,0,0])).all():
 				# print(correctImg[width,height]);
-				regionsImage[width,height] = oriImg[width,height];
+				# regionsImage[width,height] = oriImg[width,height];
 				maskImage[width,height] = oriImg[width,height];
-				markedColors.append([regionsImage[width,height,0],regionsImage[width,height,1],regionsImage[width,height,2]]); #  output for average caculate
+				markedColors.append([oriImg[width,height,0],oriImg[width,height,1],oriImg[width,height,2]]); #  output for average caculate
+				notWhiteColors.append((oriImg[width,height,0],oriImg[width,height,1],oriImg[width,height,2]));
 			elif isAlmostWhite(oriImg[width,height])==False: #caculate the average value for train image
 				notWhiteColors.append((oriImg[width,height,0],oriImg[width,height,1],oriImg[width,height,2]));
 
 	
+
+	print("processOneTrainImage  ***caculate average and variance and standard devision *** for Image: "+trainImageName);
 	markedAverage=np.array(markedColors);
 	notWhiteAverage=np.array(notWhiteColors);
 	retultRegion = caculateAverageAndVarianceForRGB(markedAverage);
 	resultWhole = caculateAverageAndVarianceForRGB(notWhiteAverage);
-	cv.imwrite(gl.worktDir_+gl.TextFolder+imageName_+"_regionsImage.bmp",regionsImage);
+	# cv.imwrite(gl.worktDir_+gl.TextFolder+imageName_+"_regionsImage.bmp",regionsImage);
 	cv.imwrite(gl.worktDir_+gl.TextFolder+imageName_+"_maskImage.bmp",maskImage);
 
 	# print(retultRegion['meanArray']);
@@ -92,4 +106,5 @@ def processOneTrainImage(trainImageName,correctImageName):
 	wirteRGBToFile(fileName_2,notWhiteColors);
 	writeStringToFile(fileName_3,str(retultRegion));
 	writeStringToFile(fileName_4,str(retultRegion));
+	print("processOneTrainImage  ***save details as text*** for Image: "+trainImageName);
 	showImageInWindow("1",1000,maskImage);
