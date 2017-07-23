@@ -28,6 +28,7 @@ def labelingGrayImage(imageMatrix):
 	return props;
 
 def detectiveLymphFromNewTestData(newTestDataFileName,markedRegionRGB,markedRegionAvg,usingTraindata):
+	print("***********  check for %s start  ***********"%(newTestDataFileName));
 	fileDir = gl.newTestFolder;
 	if usingTraindata==True:
 		fileDir = gl.TrainFolder;
