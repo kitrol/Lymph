@@ -2,11 +2,14 @@ import cv2 as cv
 import numpy as np
 import globalVal as gl
 
+
+# expand balck regions
 def erodeOrin(oriImg,erodeMask):
 	for width in range(0,oriImg.shape[0]):
 		for height in range(0,oriImg.shape[1]):
 			if (erodeMask[width,height]==np.array([0,0,0])).all():
 				oriImg[width,height] = np.array([0,0,0]);
+
 
 def showImageInWindow(windowName,time,image):
 	cv.namedWindow(windowName,cv.WINDOW_NORMAL);
@@ -54,8 +57,8 @@ def writeStringToFile(targetFileName,stringData):
 
 def processOneTrainImage(trainImageName,correctImageName):
 	print("processOneTrainImage  start for Image: "+trainImageName);
-	oriImg = readImage(trainImageName);
-	correctImg = readImage(correctImageName);
+	oriImg = readImage(gl.TrainFolder+trainImageName);
+	correctImg = readImage(gl.TrainFolder+correctImageName);
 	imageName_ = trainImageName.split('.')[0];
 
 	print("processOneTrainImage  ***erode marked regions*** for Image: "+trainImageName);
@@ -90,17 +93,17 @@ def processOneTrainImage(trainImageName,correctImageName):
 	retultRegion = caculateAverageAndVarianceForRGB(markedAverage);
 	resultWhole = caculateAverageAndVarianceForRGB(notWhiteAverage);
 	# cv.imwrite(gl.worktDir_+gl.TextFolder+imageName_+"_regionsImage.bmp",regionsImage);
-	cv.imwrite(gl.worktDir_+gl.TextFolder+imageName_+"_maskImage.bmp",maskImage);
+	cv.imwrite(gl.TextFolder+imageName_+"_maskImage.bmp",maskImage);
 
 	# print(retultRegion['meanArray']);
 	# print(retultRegion['variance']);
 	# print(resultWhole['meanArray']);
 	# print(resultWhole['variance']);
 
-	fileName_1 =gl.worktDir_+gl.TextFolder+imageName_+"_region.csv";
-	fileName_2 =gl.worktDir_+gl.TextFolder+imageName_+"_notWhite.csv";
-	fileName_3 =gl.worktDir_+gl.TextFolder+imageName_+"_regionAvg&Var.txt";
-	fileName_4 =gl.worktDir_+gl.TextFolder+imageName_+"_notWhiteAvg&Var.txt";
+	fileName_1 =gl.TextFolder+imageName_+"_region.csv";
+	fileName_2 =gl.TextFolder+imageName_+"_notWhite.csv";
+	fileName_3 =gl.TextFolder+imageName_+"_regionAvg&Var.txt";
+	fileName_4 =gl.TextFolder+imageName_+"_notWhiteAvg&Var.txt";
 
 	wirteRGBToFile(fileName_1,markedColors);
 	wirteRGBToFile(fileName_2,notWhiteColors);

@@ -36,6 +36,16 @@ print(mean);
 print(variance);
 
 
+
+# print(gl.worktDir_);
+# img = cv.imread(r'C:\Users\kitrol\Desktop\moto_1.bmp');
+# ret,img = cv.threshold(img,0,255,cv.THRESH_BINARY); # 反转颜色 黑色区域变白，其他区域变黑 CV_THRESH_BINARY_INV|CV_THRESH_OTSU
+# check_img = np.zeros(img.shape,img.dtype);
+# check_img[::] = 255;
+# # check = np.zeros((5,5,3),img.dtype);
+# ps.showImageInWindow('1',10000,img);
+
+
 # temp = np.zeros((5,6,3));
 # temp[:5, 0:,0] = 11;
 # temp[:5, :3,1] = 12;
