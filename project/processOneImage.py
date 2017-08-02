@@ -17,7 +17,7 @@ def showImageInWindow(windowName,time,image):
 	cv.waitKey(time);
 	cv.destroyAllWindows();
 
-def readImage(fileName):
+def readImage(fileName,withColor=1):
 	img = cv.imread(fileName);
 	return img;
 
@@ -63,9 +63,10 @@ def processOneTrainImage(trainImageName,correctImageName):
 
 	print("processOneTrainImage  ***erode marked regions*** for Image: "+trainImageName);
 	ret,img_gray = cv.threshold(correctImg,0,255,cv.THRESH_BINARY); # gray image for marked regions still be black
-	kernel = np.ones((5,5),np.uint8);
-	img_gray_erode = cv.erode(img_gray,kernel,iterations=1);  # expand the edge for marked regions
-	erodeOrin(correctImg,img_gray_erode);
+
+	# kernel = np.ones((5,5),np.uint8);
+	# img_gray_erode = cv.erode(img_gray,kernel,iterations=1);  # expand the edge for marked regions
+	# erodeOrin(correctImg,img_gray_erode);
 
 	print("processOneTrainImage  marked regions for Image: "+trainImageName);
 	# regionsImage = np.zeros(correctImg.shape,dtype=np.uint8);  # regions with color and bg is black
@@ -84,8 +85,6 @@ def processOneTrainImage(trainImageName,correctImageName):
 				notWhiteColors.append((oriImg[width,height,0],oriImg[width,height,1],oriImg[width,height,2]));
 			elif isAlmostWhite(oriImg[width,height])==False: #caculate the average value for train image
 				notWhiteColors.append((oriImg[width,height,0],oriImg[width,height,1],oriImg[width,height,2]));
-
-	
 
 	print("processOneTrainImage  ***caculate average and variance and standard devision *** for Image: "+trainImageName);
 	markedAverage=np.array(markedColors);

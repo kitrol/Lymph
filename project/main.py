@@ -40,9 +40,9 @@ def main(argv):
 	#*******   get setdata from train data ************
 	print("*******   get setdata from train data ************");
 	pairs = scanTrainFolder(gl.TrainFolder);
-	# orgImageName = "JF15_022_2_HE.bmp";
-	# correctImageName = "JF15_022_2_HE_correct.bmp";
-	# ps.processOneTrainImage(orgImageName,correctImageName);
+	orgImageName = "JF14_091_S8_HE.bmp";
+	correctImageName = "JF14_091_S8_HE_correct.bmp";
+	ps.processOneTrainImage(orgImageName,correctImageName);
 	print("*******   prepare new test data by setdata ************");
 	# for item in pairs:
 	# 	print(item+" : "+pairs[item]);
@@ -54,7 +54,7 @@ def main(argv):
 	#*******   detect the lymph follicle from new test data ************
 
 	# dl.detectiveLymphFromNewTestData("JF14_092_S8_HE_new.bmp","JF15_022_2_HE_region.csv","JF15_022_2_HE_regionAvg&Var.txt");
-	dl.detectiveLymphFromNewTestData("JF15_022_2_HE.bmp","JF15_022_2_HE_region.csv","JF15_022_2_HE_regionAvg&Var.txt",True);
+	# dl.detectiveLymphFromNewTestData("JF15_022_2_HE.bmp","JF15_022_2_HE_region.csv","JF15_022_2_HE_regionAvg&Var.txt",True);
 	#*******  Dinish ************
 
 if __name__ == '__main__':
