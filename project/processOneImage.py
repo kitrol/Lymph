@@ -118,6 +118,13 @@ def processOneTrainImage(trainImageName,correctImageName):
 	wirteRGBToFile(fileName_1,markedColors);
 	wirteRGBToFile(fileName_2,notWhiteColors);
 	writeStringToFile(fileName_3,str(retultRegion));
-	writeStringToFile(fileName_4,str(retultRegion));
+	writeStringToFile(fileName_4,str(resultWhole));
 	print("processOneTrainImage  ***save details as text*** for Image: "+trainImageName);
 	showImageInWindow("1",1000,maskImage);
+
+
+def dealWithGrayImage(trainImageName):
+	grayImg = readImage(gl.TrainFolder+trainImageName);
+	imageName_ = trainImageName.split('.')[0];
+	
+	cv.imwrite(gl.TextFolder+imageName_+"_gray.bmp",grayImg);
