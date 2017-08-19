@@ -18,7 +18,7 @@ def showImageInWindow(windowName,time,image):
 	cv.destroyAllWindows();
 
 def readImage(fileName,withColor=1):
-	img = cv.imread(fileName);
+	img = cv.imread(fileName,withColor);
 	return img;
 
 def isAlmostWhite(rgbColor):
@@ -59,10 +59,12 @@ def processOneTrainImage(trainImageName,correctImageName):
 	print("processOneTrainImage  start for Image: "+trainImageName);
 	oriImg = readImage(gl.TrainFolder+trainImageName);
 	correctImg = readImage(gl.TrainFolder+correctImageName);
+	regionImage = readImage(gl.TrainFolder+trainImageName,0);
 	imageName_ = trainImageName.split('.')[0];
 
 	print("processOneTrainImage  ***erode marked regions*** for Image: "+trainImageName);
 	ret,img_gray = cv.threshold(correctImg,0,255,cv.THRESH_BINARY); # gray image for marked regions still be black
+	ret1,regionImage = cv.threshold(regionImage,0,255,cv.THRESH_BINARY_INV+cv.THRESH_OTSU); # gray image for marked regions still be black
 
 	# kernel = np.ones((5,5),np.uint8);
 	# img_gray_erode = cv.erode(img_gray,kernel,iterations=1);  # expand the edge for marked regions
@@ -82,9 +84,18 @@ def processOneTrainImage(trainImageName,correctImageName):
 				# regionsImage[width,height] = oriImg[width,height];
 				maskImage[width,height] = oriImg[width,height];
 				markedColors.append([oriImg[width,height,0],oriImg[width,height,1],oriImg[width,height,2]]); #  output for average caculate
+				# notWhiteColors.append((oriImg[width,height,0],oriImg[width,height,1],oriImg[width,height,2]));
+			    #elif isAlmostWhite(oriImg[width,height])==False: #caculate the average value for train image
+				# notWhiteColors.append((oriImg[width,height,0],oriImg[width,height,1],oriImg[width,height,2]));
+
+
+
+
+	for width in range(0,oriImg.shape[0]):
+		for height in range(0,oriImg.shape[1]):
+			if (regionImage[width,height]==np.array([255,255,255])).all():
 				notWhiteColors.append((oriImg[width,height,0],oriImg[width,height,1],oriImg[width,height,2]));
-			elif isAlmostWhite(oriImg[width,height])==False: #caculate the average value for train image
-				notWhiteColors.append((oriImg[width,height,0],oriImg[width,height,1],oriImg[width,height,2]));
+
 
 	print("processOneTrainImage  ***caculate average and variance and standard devision *** for Image: "+trainImageName);
 	markedAverage=np.array(markedColors);

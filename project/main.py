@@ -39,17 +39,17 @@ def main(argv):
 	#  START 
 	#*******   get setdata from train data ************
 	print("*******   get setdata from train data ************");
-	pairs = scanTrainFolder(gl.TrainFolder);
+	# pairs = scanTrainFolder(gl.TrainFolder);
 	orgImageName = "JF14_091_S8_HE.bmp";
 	correctImageName = "JF14_091_S8_HE_correct.bmp";
-	ps.processOneTrainImage(orgImageName,correctImageName);
+	# ps.processOneTrainImage(orgImageName,correctImageName);
 	print("*******   prepare new test data by setdata ************");
 	# for item in pairs:
 	# 	print(item+" : "+pairs[item]);
 	# 	ps.processOneTrainImage(item,pairs[item]);
 	#*******   prepare new test data by setdata ************
 
-	# cntd.getNewTestData("JF14_092_S8_HE.bmp","JF14_091_S8_HE_notWhiteAvg&Var.txt");
+	cntd.getNewTestData("JF15_022_2_HE.bmp","JF14_091_S8_HE_notWhiteAvg&Var.txt");
 	print("*******   detect the lymph follicle from new test data ************");
 	#*******   detect the lymph follicle from new test data ************
 
