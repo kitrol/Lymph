@@ -8,7 +8,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 import sys
+import platform
 import os
+currentDir_ = "";
+
+
 
 def showPicForData(targetData):
 	#  prepare for the data to draw
@@ -28,7 +32,7 @@ def showPicForData(targetData):
 	ax=plt.subplot(111,projection='3d');
 	ax.scatter(paintData_0[::,0],paintData_0[::,1],paintData_0[::,2],c='b');
 	ax.scatter(paintData_1[::,0],paintData_1[::,1],paintData_1[::,2],c='r');
-	ax.set_zlabel('height'); #坐标轴
+	ax.set_zlabel('height'); 
 	ax.set_ylabel('weight');
 	ax.set_xlabel('age');
 	plt.show();
@@ -41,15 +45,26 @@ def showImageInWindow(windowName,time,image):
 	cv.destroyAllWindows();
 
 def minusAverage(image):
-	originalImage = cv.imread("D:\Lymph_Follicle\python\catalog\JF15_022_2_HE_gray.bmp",1);
-	grayImageWhole = cv.imread("D:\Lymph_Follicle\python\catalog\JF15_022_2_HE_gray.bmp",0);
+	global currentDir_;
+	originalImage = cv.imread(currentDir_+"JF15_022_2_HE_gray.bmp",1);
+	grayImageWhole = cv.imread(currentDir_+"JF15_022_2_HE_gray.bmp",0);
 	for width in range(0,opening.shape[0]):
 		for height in range(0,opening.shape[1]):
 			if opening[width,height]==0:
 				grayImageWhole[width,height]=255; 
 
 def main(argv):
-	fileName = "D:\Lymph_Follicle\python\catalog\JF14_091_S8_HE.png";# JF14_091_S8_HE-2.png 
+	global currentDir_;
+	currentDir_ = os.path.dirname(argv[0]);
+	sysstr = platform.system();
+	if sysstr == "Windows":
+		currentDir_ += "\\";
+	else:
+		currentDir_ += "/";
+	print("Working Dir is "+currentDir_);
+
+
+	fileName = currentDir_+"JF14_091_S8_HE.png";# JF14_091_S8_HE-2.png 
 	grayImage = cv.imread(fileName,0);
 	blur = cv.GaussianBlur(grayImage,(5,5),0);
 	blur2 = cv.GaussianBlur(blur,(5,5),0);
@@ -58,17 +73,17 @@ def main(argv):
 	# height=grayImage.shape[1];
 
 	
-	originalGrayImage = cv.imread("D:\Lymph_Follicle\python\catalog\JF15_022_2_HE.bmp",0);
+	originalGrayImage = cv.imread(currentDir_+"JF15_022_2_HE.bmp",0);
 	ret1,regionImage = cv.threshold(originalGrayImage,0,255,cv.THRESH_BINARY_INV+cv.THRESH_OTSU);# THRESH_BINARY_INV THRESH_BINARY
-	cv.imwrite("D:\Lymph_Follicle\python\catalog\JF15_022_2_HE_Black.bmp",regionImage);
+	cv.imwrite(currentDir_+"JF15_022_2_HE_Black.bmp",regionImage);
 
 	kernel = np.ones((3,3),np.uint8);
 	opening = cv.morphologyEx(regionImage, cv.MORPH_OPEN, kernel);
-	cv.imwrite("D:\Lymph_Follicle\python\catalog\JF15_022_2_HE_open.bmp",opening);
+	cv.imwrite(currentDir_+"JF15_022_2_HE_open.bmp",opening);
 
 
 
-	grayImageWhole = cv.imread("D:\Lymph_Follicle\python\catalog\JF15_022_2_HE_gray.bmp",0);
+	grayImageWhole = cv.imread(currentDir_+"JF15_022_2_HE_gray.bmp",0);
 	grayValueaArray = [];
 	for width in range(0,opening.shape[0]):
 		for height in range(0,opening.shape[1]):
@@ -87,8 +102,8 @@ def main(argv):
 	plt.plot(sub)
 	plt.ylabel('gray')
 	plt.show();
-	cv.imwrite("D:\Lymph_Follicle\python\catalog\JF15_022_2_HE_gray_2.bmp",grayImageWhole);
-	cv.imwrite("D:\Lymph_Follicle\python\catalog\JF15_022_2_HE_gray_2_blur4.bmp",blur4);
+	cv.imwrite(currentDir_+"JF15_022_2_HE_gray_2.bmp",grayImageWhole);
+	cv.imwrite(currentDir_+"JF15_022_2_HE_gray_2_blur4.bmp",blur4);
 	
 	# blur3 = cv.GaussianBlur(opening,(5,5),0);
 	# cv.imwrite("D:\Lymph_Follicle\python\catalog\JF15_022_2_HE_blur3.bmp",blur3);
