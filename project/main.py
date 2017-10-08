@@ -42,8 +42,8 @@ def main(argv):
 	# pairs = scanTrainFolder(gl.TrainFolder);
 	orgImageName = "JF15_022_2_HE.bmp";
 	correctImageName = "JF15_022_2_HE_correct.bmp";
-	ps.dealWithGrayImage(orgImageName);
-	# ps.processOneTrainImage(orgImageName,correctImageName);
+	# ps.dealWithGrayImage(orgImageName);
+	ps.processOneTrainImage(orgImageName,correctImageName);
 	print("*******   prepare new test data by setdata ************");
 	# for item in pairs:
 	# 	print(item+" : "+pairs[item]);

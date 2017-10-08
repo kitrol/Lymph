@@ -10,8 +10,8 @@ import os
 filePath_ = '';
 targetFileName = "";
 propertyFileName_ = 'D:/testout.txt';
-showDetialFile = 'D:/2016/openslide-win64-20170711-nightly/bin/openslide-show-properties.exe';
-outputPngTool = 'D:/2016/openslide-win64-20170711-nightly/bin/openslide-write-png.exe';
+showDetialFile = 'D:/openslide-win64-20170711-nightly/bin/openslide-show-properties.exe';
+outputPngTool = 'D:/openslide-win64-20170711-nightly/bin/openslide-write-png.exe';
 # print(type(all_the_text)); D:\2016\openslide-win64-20170711-nightly\bin\openslide-write-png.exe D:\2016\ori_slide\JF15_022_2_HE.svs 0 0 3 2306 1264 D:\2016\123.png
 
 def pasurePropertyFile( filePath ):
@@ -49,7 +49,7 @@ def outputPngFile(propertyForfile,levelIndex):
 	global filePath_;
 	global targetFileName;
 	print(targetFileName);
-	outputFileName = filePath_+'/outputFile.png';
+	outputFileName = filePath_+'/outputFile_1.bmp';
 	# 0 0 3 2306 1264 D:\2016\123.png
 	cmdStr = outputPngTool+" "+targetFileName+" 0 0 %d %d %d %s" % (levelIndex,width,height,outputFileName);
 	print(cmdStr);
