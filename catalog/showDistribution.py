@@ -22,9 +22,10 @@ def iniDir(argv):
 	sysstr = platform.system();
 	if sysstr == "Windows":
 		currentDir_ += "\\";
-		colorLevel_ = currentDir_ + "";
+		colorLevel_ = currentDir_ + "separateByColorLevel\\";
 	else:
 		currentDir_ += "/";
+		colorLevel_ = currentDir_ + "separateByColorLevel/";
 	print("Working Dir is "+currentDir_);
 
 def showPicForData(targetData):
@@ -67,7 +68,7 @@ def minusAverage(image):
 				grayImageWhole[width,height]=255; 
 
 def separateColor(image):
-	global currentDir_;
+	global colorLevel_;
 	print(image.shape);
 	channel = 2;
 	minRed = image[:,:,channel].min();
@@ -90,7 +91,7 @@ def separateColor(image):
 			for weight in range(0,image.shape[1]):
 				if ( (image[height,weight,channel] >= groupRangeMin) and (image[height,weight,channel] < groupRangeMax)):
 					newImage[height,weight] = image[height,weight];
-		cv.imwrite(currentDir_+"JF14_091_S8_HE_group%d.bmp"%(group),newImage);
+		cv.imwrite(colorLevel_+"JF14_091_S8_HE_group%d.bmp"%(group),newImage);
 
 def main(argv):
 	iniDir(argv);
