@@ -99,6 +99,10 @@ def main(argv):
 	global currentDir_;
 	fileName = currentDir_+"JF14_091_S8_HE.png";# JF14_091_S8_HE-2.png 
 	colorImage = cv.imread(fileName);
+	colorImage[:,:,0] = cv.GaussianBlur(colorImage[:,:,0],(5,5),0);
+	colorImage[:,:,1] = cv.GaussianBlur(colorImage[:,:,1],(5,5),0);
+	colorImage[:,:,2] = cv.GaussianBlur(colorImage[:,:,2],(5,5),0);
+
 	separateColor(colorImage);
 
 
