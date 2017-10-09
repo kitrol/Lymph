@@ -13,6 +13,8 @@ import os
 import math
 
 currentDir_ = "";
+colorLevel_ = "";
+
 
 def iniDir(argv):
 	global currentDir_;
@@ -20,6 +22,7 @@ def iniDir(argv):
 	sysstr = platform.system();
 	if sysstr == "Windows":
 		currentDir_ += "\\";
+		colorLevel_ = currentDir_ + "";
 	else:
 		currentDir_ += "/";
 	print("Working Dir is "+currentDir_);
