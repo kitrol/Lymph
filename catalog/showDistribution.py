@@ -37,11 +37,11 @@ def getRelativeDir(folderNamesArray):
 	global currentDir_;
 	relativeDir = currentDir_;
 	for folderName in folderNamesArray:
+		relativeDir += folderName;
 		if sysstr_ == "Windows":
 			relativeDir += "\\";
 		else:
 			relativeDir += "/";
-		relativeDir += folderName;
 	if sysstr_ == "Windows":
 		relativeDir += "\\";
 	else:
@@ -121,22 +121,46 @@ def separateColor(image,outputFormat,outputDir):
 			for weight in range(0,image.shape[1]):
 				if (image[height,weight]==np.array([255,255,255])).all():
 					continue;
-				elif ( (image[height,weight,channel] >= groupRangeMin) and (image[height,weight,channel] < groupRangeMax)):
+				elif ( (image[height,weight,channel] >= groupRangeMin) and (image[height,weight,channel] < groupRangeMax) and (max(image[height,weight]) - min(image[height,weight]) > 10) ):
 					newImage[height,weight] = image[height,weight];
 		cv.imwrite(outputDir+outputFormat%(group),newImage);
+	fileFormat = outputDir+outputFormat;
+	return fileFormat,groups;
 
 def labelingGrayImage(imageMatrix):
 	labeledPic,regionsCnt = measure.label(imageMatrix,background=255,return_num=True,connectivity=2);
 	props = measure.regionprops(labeledPic);
 	print("regionsCnt is ",regionsCnt);
-	# print(props[0]);
 	return props;
+
+def judgeRegions(regionItem):
+	# centroid = regions[index].centroid;
+	# bbox = regions[index].bbox;#(min_row, min_col, max_row, max_col)
+	# max_x = bbox[3]-bbox[1];
+	# max_y = bbox[2] - bbox[0];
+	# size = max_x*max_y;
+	# r = math.ceil(max(max_x,max_y)/2);
+	# ratio = min(max_x,max_y)/r; 
+	return True;
 
 def circleOnOriginalImage(originalImage,regionImage): #regionImage should be gray
 	regions = labelingGrayImage(regionImage);
+
+
+	print(regions[19].perimeter);
+	bbox = regions[19].bbox;#(min_row, min_col, max_row, max_col)
+	max_x = bbox[3] - bbox[1];
+	max_y = bbox[2] - bbox[0];
+	region = regionImage[bbox[1]:bbox[3],bbox[2]:bbox[0]];
+	cv.imwrite(currentDir_+"region20.bmp",region);
+
+
 	for index in range(len(regions)):
-		centroid = regions[index].centroid;
-		bbox = regions[index].bbox;#(min_row, min_col, max_row, max_col)
+		regionItem = regions[index];
+		result = judgeRegions(regionItem);
+		
+		centroid = regionItem.centroid;
+		bbox = regionItem.bbox;#(min_row, min_col, max_row, max_col)
 		max_x = bbox[3]-bbox[1];
 		max_y = bbox[2] - bbox[0];
 		size = max_x*max_y;
@@ -144,6 +168,10 @@ def circleOnOriginalImage(originalImage,regionImage): #regionImage should be gra
 		ratio = min(max_x,max_y)/r; 
 
 		cv.circle(originalImage,(int(centroid[1]),int(centroid[0])), r, (0,0,255), 2);
+		# font=cv.FONT_HERSHEY_SIMPLEX;
+		font=cv.FONT_HERSHEY_COMPLEX_SMALL;
+		cv.putText(originalImage,str(index),(int(centroid[1]),int(centroid[0])), font, 1.0,(0,255,0),thickness=2,lineType=8);
+
 	return originalImage;
 
 def main(argv):
@@ -162,7 +190,7 @@ def main(argv):
 	# colorImage_1[:,:,2] = cv.GaussianBlur(colorImage_1[:,:,2],(15,15),0);
 	# filterImageByBlackImage(colorImage_1,maskImage_1);
 	# targetDir = getRelativeDir(["separateByColorLevel","blurOriImageByKer15","JF15_022_2_HE"]);
-	# separateColor(colorImage_1,"JF15_022_2_HE_kernel15_group%d.bmp",targetDir);
+	# fileFormat,outputGroups = separateColor(colorImage_1,"JF15_022_2_HE_kernel15_group%d.bmp",targetDir);
 
 	# targetDir = getRelativeDir(["separateByColorLevel","blurOriImageByKer15","JF15_022_2_HE"]);
 	# # 如何选择最好的分层结果图片？
@@ -181,14 +209,16 @@ def main(argv):
 
 
 	# IMAGE B
-	# colorImage_1 = cv.imread(currentDir_+"JF14_091_S8_HE.bmp",COLORFULL);
-	# maskImage_1 = getImageWithWhiteBg(colorImage_1);
-	# colorImage_1[:,:,0] = cv.GaussianBlur(colorImage_1[:,:,0],(15,15),0);
-	# colorImage_1[:,:,1] = cv.GaussianBlur(colorImage_1[:,:,1],(15,15),0);
-	# colorImage_1[:,:,2] = cv.GaussianBlur(colorImage_1[:,:,2],(15,15),0);
-	# filterImageByBlackImage(colorImage_1,maskImage_1);
+	colorImage_1 = cv.imread(currentDir_+"JF14_091_S8_HE.bmp",COLORFULL);
+	maskImage_1 = getImageWithWhiteBg(colorImage_1);
+	colorImage_1[:,:,0] = cv.GaussianBlur(colorImage_1[:,:,0],(15,15),0);
+	colorImage_1[:,:,1] = cv.GaussianBlur(colorImage_1[:,:,1],(15,15),0);
+	colorImage_1[:,:,2] = cv.GaussianBlur(colorImage_1[:,:,2],(15,15),0);
+	filterImageByBlackImage(colorImage_1,maskImage_1);
 	targetDir = getRelativeDir(["separateByColorLevel","blurOriImageByKer15","JF14_091_S8_HE"]);
-	# separateColor(colorImage_1,"JF14_091_S8_HE_kernel15_group%d.bmp",targetDir);
+	# fileFormat,outputGroups = separateColor(colorImage_1,"JF14_091_S8_HE_kernel15_group%d.bmp",targetDir);
+	# print("fileFormat %s \ngroups is %d"%(fileFormat,outputGroups));
+
 	bestRegions_5 = cv.imread(targetDir+"JF14_091_S8_HE_kernel15_group5.bmp",GRAY);
 	ret,bestRegions_5 = cv.threshold(bestRegions_5,0,255,cv.THRESH_BINARY+cv.THRESH_OTSU);
 	cv.imwrite(currentDir_+"JF14_091_S8_HE_bestRegions_5.bmp",bestRegions_5);
@@ -197,10 +227,10 @@ def main(argv):
 	cv.imwrite(currentDir_+"JF14_091_S8_HE_bestRegions_10.bmp",bestRegions_6);
 	# 对于分层结果图片，怎么判断哪些连通区域属于淋巴滤泡区域？哪些不是，依靠的鉴别特征是什么？
 	result_5 = circleOnOriginalImage(cv.imread(currentDir_+"JF14_091_S8_HE.bmp",COLORFULL),bestRegions_5);
-	result_6 = circleOnOriginalImage(cv.imread(currentDir_+"JF14_091_S8_HE.bmp",COLORFULL),bestRegions_6);
+	# result_6 = circleOnOriginalImage(cv.imread(currentDir_+"JF14_091_S8_HE.bmp",COLORFULL),bestRegions_6);
 	# 多个结果，怎么选择最优的结果作为表示？
 	cv.imwrite(currentDir_+"JF14_091_S8_HE_result_5.bmp",result_5);
-	cv.imwrite(currentDir_+"JF14_091_S8_HE_result_6.bmp",result_6);
+	# cv.imwrite(currentDir_+"JF14_091_S8_HE_result_6.bmp",result_6);
 
 if __name__ == '__main__':
    main(sys.argv);
