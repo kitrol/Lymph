@@ -143,15 +143,16 @@ def judgeRegions(regionItem):
 	# ratio = min(max_x,max_y)/r; 
 	return True;
 
-def circleOnOriginalImage(originalImage,regionImage): #regionImage should be gray
+def circleOnOriginalImage(originalImage,regionImage,regionImageColor): #regionImage should be gray
 	regions = labelingGrayImage(regionImage);
 
 
-	print(regions[19].perimeter);
-	bbox = regions[19].bbox;#(min_row, min_col, max_row, max_col)
+	print(regions[20].perimeter);
+	bbox = regions[20].bbox;#(min_row, min_col, max_row, max_col)
 	max_x = bbox[3] - bbox[1];
 	max_y = bbox[2] - bbox[0];
-	region = regionImage[bbox[1]:bbox[3],bbox[2]:bbox[0]];
+	# region = originalImage[bbox[1]:bbox[3],bbox[0]:bbox[2]];
+	region = regionImageColor[bbox[0]:bbox[2],bbox[1]:bbox[3]];
 	cv.imwrite(currentDir_+"region20.bmp",region);
 
 
@@ -220,13 +221,14 @@ def main(argv):
 	# print("fileFormat %s \ngroups is %d"%(fileFormat,outputGroups));
 
 	bestRegions_5 = cv.imread(targetDir+"JF14_091_S8_HE_kernel15_group5.bmp",GRAY);
+	bestRegions_5_color = cv.imread(targetDir+"JF14_091_S8_HE_kernel15_group5.bmp",COLORFULL);
 	ret,bestRegions_5 = cv.threshold(bestRegions_5,0,255,cv.THRESH_BINARY+cv.THRESH_OTSU);
 	cv.imwrite(currentDir_+"JF14_091_S8_HE_bestRegions_5.bmp",bestRegions_5);
 	bestRegions_6 = cv.imread(targetDir+"JF14_091_S8_HE_kernel15_group6.bmp",GRAY);
 	ret,bestRegions_6 = cv.threshold(bestRegions_6,0,255,cv.THRESH_BINARY+cv.THRESH_OTSU);
 	cv.imwrite(currentDir_+"JF14_091_S8_HE_bestRegions_10.bmp",bestRegions_6);
 	# 对于分层结果图片，怎么判断哪些连通区域属于淋巴滤泡区域？哪些不是，依靠的鉴别特征是什么？
-	result_5 = circleOnOriginalImage(cv.imread(currentDir_+"JF14_091_S8_HE.bmp",COLORFULL),bestRegions_5);
+	result_5 = circleOnOriginalImage(cv.imread(currentDir_+"JF14_091_S8_HE.bmp",COLORFULL),bestRegions_5,bestRegions_5_color);
 	# result_6 = circleOnOriginalImage(cv.imread(currentDir_+"JF14_091_S8_HE.bmp",COLORFULL),bestRegions_6);
 	# 多个结果，怎么选择最优的结果作为表示？
 	cv.imwrite(currentDir_+"JF14_091_S8_HE_result_5.bmp",result_5);
