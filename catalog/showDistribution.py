@@ -18,8 +18,8 @@ colorLevel_ = "";
 sysstr_ = "";
 COLORFULL = 1;
 GRAY = 0;
-interval = 10.0;
-channel = 2;
+interval = 8.0;
+channel = 2; # GREEN 
 kernel = (9,9);
 
 def iniDir(argv):
@@ -87,24 +87,44 @@ def minusAverage(image):
 	for width in range(0,opening.shape[0]):
 		for height in range(0,opening.shape[1]):
 			if opening[width,height]==0:
-				grayImageWhole[width,height]=255; 
+				grayImageWhole[width,height]=255;
 
-def getImageWithWhiteBg(image):
-	ret,regionImage = cv.threshold(image[:,:,2],0,255,cv.THRESH_BINARY+cv.THRESH_OTSU);
-	cv.imwrite(currentDir_+"regionImage.bmp",regionImage);
+def blurForChannels(colorImage,channelID=None):
+	channels = colorImage.shape[2];
+	global kernel;
+	if channelID:
+		colorImage[:,:,channelID] = cv.GaussianBlur(colorImage[:,:,channelID],kernel,0);
+	else:
+		for channel in range(0,channels):
+			colorImage[:,:,channel] = cv.GaussianBlur(colorImage[:,:,channel],kernel,0);
+	return colorImage;
+
+def getImageWithBlackBg(image):
+	global channel;
+	ret,regionImage = cv.threshold(image[:,:,channel],0,255,cv.THRESH_BINARY_INV+cv.THRESH_OTSU);
 	return regionImage;
 
 def filterImageByBlackImage(originalImage,maskImage):
-	# mask image should be black and white,the background of the originalImage should be white 
-	# in maskImage and the tissue regions should be black.
+	# mask image should be white and black,the background of the originalImage should be black 
+	# in maskImage and the tissue regions should be white.
 	for height in range(0,maskImage.shape[0]):
 		for width in range(0,maskImage.shape[1]):
-			if maskImage[height,width]==255:
+			if maskImage[height,width]==0:
 				originalImage[height,width,:]=255;
 
 	return originalImage;
 
+def reduceNoise(originImage):
+	newImage = np.zeros(originImage.shape,dtype=np.uint8);
+	newImage[::] = 255;
+	for height in range(0,originImage.shape[0]):
+		for weight in range(0,originImage.shape[1]):
+			if max(originImage[height,weight]) - min(originImage[height,weight]) > 20:
+				newImage[height,weight] = originImage[height,weight];
+	return newImage;
+
 def separateColor(image,outputFormat,outputDir):
+	print("Func separateColor: oringin image size is");
 	print(image.shape);
 	global channel; #  RED channel
 	pixels = [];
@@ -120,16 +140,28 @@ def separateColor(image,outputFormat,outputDir):
 				if maxInChannel < image[height,weight,channel]:
 					maxInChannel = image[height,weight,channel];
 	# print("minInChannel is %d maxInChannel is %d "%(minInChannel,maxInChannel));				
-
-	redRange = maxInChannel-minInChannel;
+	colorRange = maxInChannel-minInChannel;
 	global interval;
-	groups = int(math.ceil(redRange/interval));
-	print(groups);
+	groups = int(math.ceil(colorRange/interval));
+	print("groups is %d "%(groups));
+
+	outputImages = [];
+	boundaries = [];
+	for group in range(0,groups):
+		# newImage = np.zeros(image.shape,dtype=np.uint8);
+		# newImage[::] = 255;
+		# outputImages.append(newImage);
+		groupRangeMin = group*interval+minInChannel;
+		groupRangeMax = (group+1)*interval+minInChannel;
+		boundaries.append((groupRangeMin,groupRangeMax));
+
 	for group in range(0,groups):
 		newImage = np.zeros(image.shape,dtype=np.uint8);
 		newImage[::] = 255;
-		groupRangeMin = (group-1)*interval+minInChannel;
-		groupRangeMax = group*interval+minInChannel;
+		# groupRangeMin = (group-1)*interval+minInChannel;
+		# groupRangeMax = group*interval+minInChannel;
+		groupRangeMin = boundaries[group][0];
+		groupRangeMax = boundaries[group][1];
 		for height in range(0,image.shape[0]):
 			for weight in range(0,image.shape[1]):
 				if (image[height,weight]==np.array([255,255,255])).all():
@@ -137,8 +169,24 @@ def separateColor(image,outputFormat,outputDir):
 				elif ( (image[height,weight,channel] >= groupRangeMin) and (image[height,weight,channel] < groupRangeMax) and (max(image[height,weight]) - min(image[height,weight]) > 10) ):
 					newImage[height,weight] = image[height,weight];
 		cv.imwrite(outputDir+outputFormat%(group),newImage);
-	fileFormat = outputDir+outputFormat;
-	return fileFormat,groups;
+
+
+
+	# for height in range(0,image.shape[0]):
+	# 	for weight in range(0,image.shape[1]):
+	# 		for group in range(0,groups):
+	# 			# outputImage = outputImages[group];
+	# 			groupRangeMin = boundaries[group][0];
+	# 			groupRangeMax = boundaries[group][1];
+	# 		if (image[height,weight]==np.array([255,255,255])).all():
+	# 			continue;
+	# 		elif ( (image[height,weight,channel] >= groupRangeMin) and (image[height,weight,channel] < groupRangeMax) and (max(image[height,weight]) - min(image[height,weight]) > 10) ):
+	# 			outputImages[group][height,weight] = image[height,weight];
+
+	# for group in range(0,groups):
+	# 	cv.imwrite(outputDir+outputFormat%(group),outputImages[group]);
+	# fileFormat = outputDir+outputFormat;
+	return (outputDir+outputFormat),groups;
 
 def labelingGrayImage(imageMatrix):
 	labeledPic,regionsCnt = measure.label(imageMatrix,background=255,return_num=True,connectivity=2);
@@ -190,6 +238,7 @@ def main(argv):
 	global currentDir_;
 	global colorLevel_;
 	global kernel;
+	global channel;
 
 	# blur -->  removeBg  -->  separatecolor  --> outPut
 	# pick up Best Image for the Target Regions --> circle on the original  --> see the Results for marking
@@ -222,14 +271,17 @@ def main(argv):
 
 	# IMAGE B
 	colorImage_1 = cv.imread(currentDir_+"JF14_091_S8_HE.bmp",COLORFULL);
-	maskImage_1 = getImageWithWhiteBg(colorImage_1);
-	# colorImage_1[:,:,0] = cv.GaussianBlur(colorImage_1[:,:,0],kernel,0);
-	# colorImage_1[:,:,1] = cv.GaussianBlur(colorImage_1[:,:,1],kernel,0);
-	colorImage_1[:,:,2] = cv.GaussianBlur(colorImage_1[:,:,2],kernel,0);
+	colorImage_1 = reduceNoise(colorImage_1);
+	maskImage_1 = getImageWithBlackBg(colorImage_1);
+
+	# ret,maskImage_2 = cv.threshold(colorImage_1[:,:,channel],0,255,cv.THRESH_BINARY_INV+cv.THRESH_OTSU);
+	# cv.imwrite(currentDir_+"JF14_091_S8_HE_mask3.bmp",maskImage_2);
 	filterImageByBlackImage(colorImage_1,maskImage_1);
+	colorImage_1 = blurForChannels(colorImage_1,channel);
+	cv.imwrite(currentDir_+"JF14_091_S8_HE_noise.bmp",colorImage_1);
 	targetDir = getRelativeDir(["separateByColorLevel","blurOriImageByKer15","JF14_091_S8_HE"]);
 	fileFormat,outputGroups = separateColor(colorImage_1,"JF14_091_S8_HE_kernel15_group%d.bmp",targetDir);
-	print("fileFormat %s \ngroups is %d"%(fileFormat,outputGroups));
+	# print("fileFormat %s \ngroups is %d"%(fileFormat,outputGroups));
 
 	# bestRegions_4 = cv.imread(targetDir+"JF14_091_S8_HE_kernel15_group4.bmp",GRAY);
 	# # bestRegions_4_color = cv.imread(targetDir+"JF14_091_S8_HE_kernel15_group4.bmp",COLORFULL);
