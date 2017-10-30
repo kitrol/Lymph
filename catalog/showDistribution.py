@@ -11,6 +11,7 @@ import sys
 import platform
 import os
 import math
+import time
 from skimage import io,measure,color
 
 currentDir_ = "";
@@ -18,8 +19,8 @@ colorLevel_ = "";
 sysstr_ = "";
 COLORFULL = 1;
 GRAY = 0;
-interval = 8.0;
-channel = 2; # GREEN 
+interval = 10;
+channel = 2; # color channel B:0 G:1 R:2s
 kernel = (9,9);
 
 def iniDir(argv):
@@ -45,10 +46,6 @@ def getRelativeDir(folderNamesArray):
 			relativeDir += "\\";
 		else:
 			relativeDir += "/";
-	if sysstr_ == "Windows":
-		relativeDir += "\\";
-	else:
-		relativeDir += "/";
 	return relativeDir;
 
 def showPicForData(targetData):
@@ -148,44 +145,42 @@ def separateColor(image,outputFormat,outputDir):
 	outputImages = [];
 	boundaries = [];
 	for group in range(0,groups):
-		# newImage = np.zeros(image.shape,dtype=np.uint8);
-		# newImage[::] = 255;
-		# outputImages.append(newImage);
+		newImage = np.zeros(image.shape,dtype=np.uint8);
+		newImage[::] = 255;
+		outputImages.append(newImage);
 		groupRangeMin = group*interval+minInChannel;
 		groupRangeMax = (group+1)*interval+minInChannel;
 		boundaries.append((groupRangeMin,groupRangeMax));
 
-	for group in range(0,groups):
-		newImage = np.zeros(image.shape,dtype=np.uint8);
-		newImage[::] = 255;
-		# groupRangeMin = (group-1)*interval+minInChannel;
-		# groupRangeMax = group*interval+minInChannel;
-		groupRangeMin = boundaries[group][0];
-		groupRangeMax = boundaries[group][1];
-		for height in range(0,image.shape[0]):
-			for weight in range(0,image.shape[1]):
-				if (image[height,weight]==np.array([255,255,255])).all():
-					continue;
-				elif ( (image[height,weight,channel] >= groupRangeMin) and (image[height,weight,channel] < groupRangeMax) and (max(image[height,weight]) - min(image[height,weight]) > 10) ):
-					newImage[height,weight] = image[height,weight];
-		cv.imwrite(outputDir+outputFormat%(group),newImage);
-
-
-
-	# for height in range(0,image.shape[0]):
-	# 	for weight in range(0,image.shape[1]):
-	# 		for group in range(0,groups):
-	# 			# outputImage = outputImages[group];
-	# 			groupRangeMin = boundaries[group][0];
-	# 			groupRangeMax = boundaries[group][1];
-	# 		if (image[height,weight]==np.array([255,255,255])).all():
-	# 			continue;
-	# 		elif ( (image[height,weight,channel] >= groupRangeMin) and (image[height,weight,channel] < groupRangeMax) and (max(image[height,weight]) - min(image[height,weight]) > 10) ):
-	# 			outputImages[group][height,weight] = image[height,weight];
-
 	# for group in range(0,groups):
-	# 	cv.imwrite(outputDir+outputFormat%(group),outputImages[group]);
-	# fileFormat = outputDir+outputFormat;
+	# 	newImage = np.zeros(image.shape,dtype=np.uint8);
+	# 	newImage[::] = 255;
+	# 	# groupRangeMin = (group-1)*interval+minInChannel;
+	# 	# groupRangeMax = group*interval+minInChannel;
+	# 	groupRangeMin = boundaries[group][0];
+	# 	groupRangeMax = boundaries[group][1];
+	# 	for height in range(0,image.shape[0]):
+	# 		for weight in range(0,image.shape[1]):
+	# 			if (image[height,weight]==np.array([255,255,255])).all():
+	# 				continue;
+	# 			elif ( (image[height,weight,channel] >= groupRangeMin) and (image[height,weight,channel] < groupRangeMax) and (max(image[height,weight]) - min(image[height,weight]) > 10) ):
+	# 				newImage[height,weight] = image[height,weight];
+	# 	cv.imwrite(outputDir+outputFormat%(group),newImage);
+
+	for height in range(0,image.shape[0]):
+		for weight in range(0,image.shape[1]):
+			for group in range(0,groups):
+				# outputImage = outputImages[group];
+				groupRangeMin = boundaries[group][0];
+				groupRangeMax = boundaries[group][1];
+				pixelColor = image[height,weight];
+				if (pixelColor ==np.array([255,255,255])).all():
+					continue;
+				elif ( (pixelColor[channel] >= groupRangeMin) and (pixelColor[channel] < groupRangeMax) ):
+					outputImages[group][height,weight] = pixelColor;
+
+	for group in range(0,groups):
+		cv.imwrite(outputDir+outputFormat%(group),outputImages[group]);
 	return (outputDir+outputFormat),groups;
 
 def labelingGrayImage(imageMatrix):
@@ -221,12 +216,13 @@ def circleOnOriginalImage(originalImage,regionImage,regionImageColor=None): #reg
 		centroid = regionItem.centroid;
 		bbox = regionItem.bbox;#(min_row, min_col, max_row, max_col)
 		max_x = bbox[3]-bbox[1];
-		max_y = bbox[2] - bbox[0];
+		max_y = bbox[2]-bbox[0];
 		size = max_x*max_y;
-		r = math.ceil(max(max_x,max_y)/2);
-		ratio = min(max_x,max_y)/r; 
+		r = int(math.ceil(max(max_x,max_y)/2));
+		# ratio = min(max_x,max_y)/r; 
 
-		cv.circle(originalImage,(int(centroid[1]),int(centroid[0])), r, (0,0,255), 2);
+		# print("r is %d "%(r));
+		cv.circle(originalImage,(int(centroid[1]),int(centroid[0])), int(r), (0,0,255), 2);
 		# font=cv.FONT_HERSHEY_SIMPLEX;
 		font=cv.FONT_HERSHEY_COMPLEX_SMALL;
 		cv.putText(originalImage,str(index),(int(centroid[1]),int(centroid[0])), font, 1.0,(0,255,0),thickness=2,lineType=8);
@@ -270,41 +266,31 @@ def main(argv):
 
 
 	# IMAGE B
-	colorImage_1 = cv.imread(currentDir_+"JF14_091_S8_HE.bmp",COLORFULL);
-	colorImage_1 = reduceNoise(colorImage_1);
-	maskImage_1 = getImageWithBlackBg(colorImage_1);
+	# time0 = time.time();
+	# colorImage_1 = cv.imread(currentDir_+"JF14_091_S8_HE.bmp",COLORFULL);
+	# colorImage_1 = reduceNoise(colorImage_1);
+	# maskImage_1 = getImageWithBlackBg(colorImage_1);
 
-	# ret,maskImage_2 = cv.threshold(colorImage_1[:,:,channel],0,255,cv.THRESH_BINARY_INV+cv.THRESH_OTSU);
-	# cv.imwrite(currentDir_+"JF14_091_S8_HE_mask3.bmp",maskImage_2);
-	filterImageByBlackImage(colorImage_1,maskImage_1);
-	colorImage_1 = blurForChannels(colorImage_1,channel);
-	cv.imwrite(currentDir_+"JF14_091_S8_HE_noise.bmp",colorImage_1);
+	# # ret,maskImage_2 = cv.threshold(colorImage_1[:,:,channel],0,255,cv.THRESH_BINARY_INV+cv.THRESH_OTSU);
+	# # cv.imwrite(currentDir_+"JF14_091_S8_HE_mask3.bmp",maskImage_2);
+	# filterImageByBlackImage(colorImage_1,maskImage_1);
+	# colorImage_1 = blurForChannels(colorImage_1,channel);
+	# cv.imwrite(currentDir_+"JF14_091_S8_HE_noise.bmp",colorImage_1);
 	targetDir = getRelativeDir(["separateByColorLevel","blurOriImageByKer15","JF14_091_S8_HE"]);
-	fileFormat,outputGroups = separateColor(colorImage_1,"JF14_091_S8_HE_kernel15_group%d.bmp",targetDir);
+	# fileFormat,outputGroups = separateColor(colorImage_1,"JF14_091_S8_HE_kernel15_group%d.bmp",targetDir);
 	# print("fileFormat %s \ngroups is %d"%(fileFormat,outputGroups));
+	# print("progress 1 over use time %d"%(time.time()-time0));   # 295
 
-	# bestRegions_4 = cv.imread(targetDir+"JF14_091_S8_HE_kernel15_group4.bmp",GRAY);
-	# # bestRegions_4_color = cv.imread(targetDir+"JF14_091_S8_HE_kernel15_group4.bmp",COLORFULL);
-	# ret,bestRegions_4 = cv.threshold(bestRegions_4,0,255,cv.THRESH_BINARY+cv.THRESH_OTSU);
-
-	# bestRegions_5 = cv.imread(targetDir+"JF14_091_S8_HE_kernel15_group5.bmp",GRAY);
-	# # bestRegions_5_color = cv.imread(targetDir+"JF14_091_S8_HE_kernel15_group5.bmp",COLORFULL);
-	# ret,bestRegions_5 = cv.threshold(bestRegions_5,0,255,cv.THRESH_BINARY+cv.THRESH_OTSU);
-	
-	# bestRegions_6 = cv.imread(targetDir+"JF14_091_S8_HE_kernel15_group6.bmp",GRAY);
-	# # bestRegions_6_color = cv.imread(targetDir+"JF14_091_S8_HE_kernel15_group6.bmp",COLORFULL);
-	# ret,bestRegions_6 = cv.threshold(bestRegions_6,0,255,cv.THRESH_BINARY+cv.THRESH_OTSU);
-	# # cv.imwrite(currentDir_+"JF14_091_S8_HE_bestRegions_5.bmp",bestRegions_5);
-	# # cv.imwrite(currentDir_+"JF14_091_S8_HE_bestRegions_10.bmp",bestRegions_6);
+	time1 = time.time();
+	bestRegions_5 = cv.imread(targetDir+"JF14_091_S8_HE_kernel15_group5.bmp",GRAY);
+	# bestRegions_5_color = cv.imread(targetDir+"JF14_091_S8_HE_kernel15_group5.bmp",COLORFULL);
+	ret,bestRegions_5 = cv.threshold(bestRegions_5,0,255,cv.THRESH_BINARY+cv.THRESH_OTSU);
 
 	# # 对于分层结果图片，怎么判断哪些连通区域属于淋巴滤泡区域？哪些不是，依靠的鉴别特征是什么？
-	# result_4 = circleOnOriginalImage(cv.imread(currentDir_+"JF14_091_S8_HE.bmp",COLORFULL),bestRegions_4);
-	# result_5 = circleOnOriginalImage(cv.imread(currentDir_+"JF14_091_S8_HE.bmp",COLORFULL),bestRegions_5);
-	# result_6 = circleOnOriginalImage(cv.imread(currentDir_+"JF14_091_S8_HE.bmp",COLORFULL),bestRegions_6);
+	result_5 = circleOnOriginalImage(cv.imread(currentDir_+"JF14_091_S8_HE.bmp",COLORFULL),bestRegions_5);
 	# # 多个结果，怎么选择最优的结果作为表示？
-	# cv.imwrite(currentDir_+"JF14_091_S8_HE_result_4.bmp",result_4);
-	# cv.imwrite(currentDir_+"JF14_091_S8_HE_result_5.bmp",result_5);
-	# cv.imwrite(currentDir_+"JF14_091_S8_HE_result_6.bmp",result_6);
+	cv.imwrite(currentDir_+"JF14_091_S8_HE_result_5.bmp",result_5);
+	print("mark use time %d"%(time.time()-time1));
 
 if __name__ == '__main__':
    main(sys.argv);
