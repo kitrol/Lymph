@@ -21,7 +21,7 @@ COLORFULL = 1;
 GRAY = 0;
 interval = 10;
 channel = 2; # color channel B:0 G:1 R:2s
-kernel = (9,9);
+kernel = (13,13);
 
 def iniDir(argv):
 	global currentDir_;
@@ -77,14 +77,31 @@ def showImageInWindow(windowName,time,image):
 	cv.waitKey(time);
 	cv.destroyAllWindows();
 
-def minusAverage(image):
+def addColor(color,addNum):
+	if (color+addNum)>255:
+		return 255;
+	elif (color+addNum)<0:
+		return 0;
+	else:
+		return color+addNum;
+
+def sharpProcess(image):
 	global currentDir_;
-	originalImage = cv.imread(currentDir_+"JF15_022_2_HE_gray.bmp",COLORFULL);
-	grayImageWhole = cv.imread(currentDir_+"JF15_022_2_HE_gray.bmp",GRAY);
-	for width in range(0,opening.shape[0]):
-		for height in range(0,opening.shape[1]):
-			if opening[width,height]==0:
-				grayImageWhole[width,height]=255;
+	global channel;
+
+	for height in range(0,image.shape[0]-1):
+		for width in range(0,image.shape[1]-1):
+			colorLeft = image[height,width,channel];
+			colorRight = image[height,width+1,channel];
+			value_ = abs(int(colorLeft)-int(colorRight));
+			if (max(colorLeft,colorRight) != 255) and (value_ > 20) :
+				if image[height,width,channel] > image[height,width+1,channel]:
+					image[height,width,channel] = min(255,image[height,width,channel]+30);
+					image[height,width+1,channel] = max(0,image[height,width+1,channel]-30);
+				else:
+					image[height,width,channel] = max(0,image[height,width,channel]-30);
+					image[height,width+1,channel] = min(255,image[height,width+1,channel]+30);
+	return image;
 
 def blurForChannels(colorImage,channelID=None):
 	channels = colorImage.shape[2];
@@ -169,11 +186,10 @@ def separateColor(image,outputFormat,outputDir):
 
 	for height in range(0,image.shape[0]):
 		for weight in range(0,image.shape[1]):
+			pixelColor = image[height,weight];
 			for group in range(0,groups):
-				# outputImage = outputImages[group];
 				groupRangeMin = boundaries[group][0];
 				groupRangeMax = boundaries[group][1];
-				pixelColor = image[height,weight];
 				if (pixelColor ==np.array([255,255,255])).all():
 					continue;
 				elif ( (pixelColor[channel] >= groupRangeMin) and (pixelColor[channel] < groupRangeMax) ):
@@ -196,7 +212,7 @@ def judgeRegions(regionItem):
 	# max_y = bbox[2] - bbox[0];
 	# size = max_x*max_y;
 	# r = math.ceil(max(max_x,max_y)/2);
-	# ratio = min(max_x,max_y)/r; 
+	# ratio = min(max_x,max_y)/r;
 	return True;
 
 def circleOnOriginalImage(originalImage,regionImage,regionImageColor=None): #regionImage should be gray
@@ -236,61 +252,46 @@ def main(argv):
 	global kernel;
 	global channel;
 
-	# blur -->  removeBg  -->  separatecolor  --> outPut
+	kernelSize = kernel[0];
+
+	# reduce noise --> bg white  --> blur for channel  --> output files separated by color in channel --> use one to mark image
 	# pick up Best Image for the Target Regions --> circle on the original  --> see the Results for marking
-
-	# IMAGE A
-	# colorImage_1 = cv.imread(currentDir_+"JF15_022_2_HE.bmp",COLORFULL);
-	# maskImage_1 = getImageWithWhiteBg(colorImage_1);
-	# colorImage_1[:,:,0] = cv.GaussianBlur(colorImage_1[:,:,0],kernel,0);
-	# colorImage_1[:,:,1] = cv.GaussianBlur(colorImage_1[:,:,1],kernel,0);
-	# colorImage_1[:,:,2] = cv.GaussianBlur(colorImage_1[:,:,2],kernel,0);
-	# filterImageByBlackImage(colorImage_1,maskImage_1);
-	# targetDir = getRelativeDir(["separateByColorLevel","blurOriImageByKer15","JF15_022_2_HE"]);
-	# fileFormat,outputGroups = separateColor(colorImage_1,"JF15_022_2_HE_kernel15_group%d.bmp",targetDir);
-
-	# targetDir = getRelativeDir(["separateByColorLevel","blurOriImageByKer15","JF15_022_2_HE"]);
-	# # 如何选择最好的分层结果图片？
-	# bestRegions_9 = cv.imread(targetDir+"JF15_022_2_HE_kernel15_group9.bmp",GRAY);
-	# ret,bestRegions_9 = cv.threshold(bestRegions_9,0,255,cv.THRESH_BINARY+cv.THRESH_OTSU);
-	# cv.imwrite(currentDir_+"JF15_022_2_HE_bestRegions_9.bmp",bestRegions_9);
-	# bestRegions_10 = cv.imread(targetDir+"JF15_022_2_HE_kernel15_group9.bmp",GRAY);
-	# ret,bestRegions_10 = cv.threshold(bestRegions_10,0,255,cv.THRESH_BINARY+cv.THRESH_OTSU);
-	# cv.imwrite(currentDir_+"JF15_022_2_HE_bestRegions_10.bmp",bestRegions_10);
-	# # 对于分层结果图片，怎么判断哪些连通区域属于淋巴滤泡区域？哪些不是，依靠的鉴别特征是什么？
-	# result_9 = circleOnOriginalImage(cv.imread(currentDir_+"JF15_022_2_HE.bmp",COLORFULL),bestRegions_9);
-	# result_10 = circleOnOriginalImage(cv.imread(currentDir_+"JF15_022_2_HE.bmp",COLORFULL),bestRegions_10);
-	# # 多个结果，怎么选择最优的结果作为表示？
-	# cv.imwrite(currentDir_+"JF15_022_2_HE_result_9.bmp",result_9);
-	# cv.imwrite(currentDir_+"JF15_022_2_HE_result_10.bmp",result_10);
-
+	colorImage_1 = cv.imread(currentDir_+"JF14_091_S8_HE.bmp",COLORFULL);
+	cv.imwrite(currentDir_+"JF14_091_S8_HE_red.bmp",colorImage_1[:,:,channel]);
+	ret,grayImage = cv.threshold(colorImage_1[:,:,channel],190,255,cv.THRESH_BINARY);
+	cv.imwrite(currentDir_+"JF14_091_S8_HE_red_threshold.bmp",grayImage);
 
 	# IMAGE B
-	# time0 = time.time();
+	time0 = time.time();
 	# colorImage_1 = cv.imread(currentDir_+"JF14_091_S8_HE.bmp",COLORFULL);
 	# colorImage_1 = reduceNoise(colorImage_1);
 	# maskImage_1 = getImageWithBlackBg(colorImage_1);
 
-	# # ret,maskImage_2 = cv.threshold(colorImage_1[:,:,channel],0,255,cv.THRESH_BINARY_INV+cv.THRESH_OTSU);
-	# # cv.imwrite(currentDir_+"JF14_091_S8_HE_mask3.bmp",maskImage_2);
+	# ret,maskImage_2 = cv.threshold(colorImage_1[:,:,channel],0,255,cv.THRESH_BINARY_INV+cv.THRESH_OTSU);
+	# cv.imwrite(currentDir_+"JF14_091_S8_HE_mask3.bmp",maskImage_2);
 	# filterImageByBlackImage(colorImage_1,maskImage_1);
 	# colorImage_1 = blurForChannels(colorImage_1,channel);
 	# cv.imwrite(currentDir_+"JF14_091_S8_HE_noise.bmp",colorImage_1);
-	targetDir = getRelativeDir(["separateByColorLevel","blurOriImageByKer15","JF14_091_S8_HE"]);
-	# fileFormat,outputGroups = separateColor(colorImage_1,"JF14_091_S8_HE_kernel15_group%d.bmp",targetDir);
+	# cv.imwrite(currentDir_+"JF14_091_S8_HE_red_2.bmp",colorImage_1[:,:,2]);
+	# targetDir = getRelativeDir(["separateByColorLevel","blurByKer%dChannel%d"%(kernelSize,channel),"JF14_091_S8_HE"]);
+	# print(targetDir);
+	# if (not os.path.isdir(targetDir)):
+	# 	os.makedirs(targetDir);
+	# fileFormat,outputGroups = separateColor(colorImage_1,"JF14_091_S8_HE_kernel%dChannel%d"%(kernelSize,channel)+"_group%d.bmp",targetDir);
 	# print("fileFormat %s \ngroups is %d"%(fileFormat,outputGroups));
 	# print("progress 1 over use time %d"%(time.time()-time0));   # 295
 
-	time1 = time.time();
-	bestRegions_5 = cv.imread(targetDir+"JF14_091_S8_HE_kernel15_group5.bmp",GRAY);
-	# bestRegions_5_color = cv.imread(targetDir+"JF14_091_S8_HE_kernel15_group5.bmp",COLORFULL);
-	ret,bestRegions_5 = cv.threshold(bestRegions_5,0,255,cv.THRESH_BINARY+cv.THRESH_OTSU);
+	# time1 = time.time();
+	# group = 3;
+	# bestRegions = cv.imread(targetDir+"JF14_091_S8_HE_kernel%dChannel%d_group%d.bmp"%(kernelSize,channel,group),GRAY);
+	# # bestRegions_5_color = cv.imread(targetDir+"JF14_091_S8_HE_kernel15_group5.bmp",COLORFULL);
+	# ret,bestRegions = cv.threshold(bestRegions,0,255,cv.THRESH_BINARY+cv.THRESH_OTSU);
 
-	# # 对于分层结果图片，怎么判断哪些连通区域属于淋巴滤泡区域？哪些不是，依靠的鉴别特征是什么？
-	result_5 = circleOnOriginalImage(cv.imread(currentDir_+"JF14_091_S8_HE.bmp",COLORFULL),bestRegions_5);
-	# # 多个结果，怎么选择最优的结果作为表示？
-	cv.imwrite(currentDir_+"JF14_091_S8_HE_result_5.bmp",result_5);
-	print("mark use time %d"%(time.time()-time1));
+	# # # 对于分层结果图片，怎么判断哪些连通区域属于淋巴滤泡区域？哪些不是，依靠的鉴别特征是什么？
+	# result = circleOnOriginalImage(cv.imread(currentDir_+"JF14_091_S8_HE.bmp",COLORFULL),bestRegions);
+	# # # 多个结果，怎么选择最优的结果作为表示？
+	# cv.imwrite(targetDir+"JF14_091_S8_HE_result_%d.bmp"%(group),result);
+	# print("mark use time %d"%(time.time()-time1));
 
 if __name__ == '__main__':
    main(sys.argv);
