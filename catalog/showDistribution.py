@@ -281,9 +281,9 @@ def main(argv):
 	for height in range(0,colorImage_1.shape[0]):
 		for weight in range(0,colorImage_1.shape[1]):
 			if (colorImage_1[height,weight]!=np.array([255,255,255])).all():
-				newImage[height,weight,0] = np.uint8(255-(colorImage_1[height,weight,0]-colorImage_1[height,weight,1]))  #B
-				newImage[height,weight,1] = np.uint8(255-(colorImage_1[height,weight,2]-colorImage_1[height,weight,1]))  #G
-				newImage[height,weight,2] = np.uint8(255-(colorImage_1[height,weight,2]-colorImage_1[height,weight,0]));                                     #R
+				newImage[height,weight,0] = np.uint8((colorImage_1[height,weight,0]-colorImage_1[height,weight,1]))  #B
+				newImage[height,weight,1] = np.uint8((colorImage_1[height,weight,2]-colorImage_1[height,weight,1]))  #G
+				newImage[height,weight,2] = colorImage_1[height,weight,2];                                               #R
 	cv.imwrite(targetDir+"JF14_091_S8_HE_minus.bmp",newImage);
 
 	# fileFormat,outputGroups = separateColor(colorImage_1,"JF14_091_S8_HE_kernel%dChannel%d"%(kernelSize,channel)+"_group%d.bmp",targetDir);
