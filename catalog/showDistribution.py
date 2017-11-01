@@ -19,9 +19,9 @@ colorLevel_ = "";
 sysstr_ = "";
 COLORFULL = 1;
 GRAY = 0;
-interval = 10;
+interval = 8;
 channel = 2; # color channel B:0 G:1 R:2s
-kernel = (13,13);
+kernel = (15,15);
 
 def iniDir(argv):
 	global currentDir_;
@@ -256,27 +256,36 @@ def main(argv):
 
 	# reduce noise --> bg white  --> blur for channel  --> output files separated by color in channel --> use one to mark image
 	# pick up Best Image for the Target Regions --> circle on the original  --> see the Results for marking
-	colorImage_1 = cv.imread(currentDir_+"JF14_091_S8_HE.bmp",COLORFULL);
-	cv.imwrite(currentDir_+"JF14_091_S8_HE_red.bmp",colorImage_1[:,:,channel]);
-	ret,grayImage = cv.threshold(colorImage_1[:,:,channel],190,255,cv.THRESH_BINARY);
-	cv.imwrite(currentDir_+"JF14_091_S8_HE_red_threshold.bmp",grayImage);
 
 	# IMAGE B
-	time0 = time.time();
-	# colorImage_1 = cv.imread(currentDir_+"JF14_091_S8_HE.bmp",COLORFULL);
-	# colorImage_1 = reduceNoise(colorImage_1);
-	# maskImage_1 = getImageWithBlackBg(colorImage_1);
+	targetDir = getRelativeDir(["separateByColorLevel","blurByKer%dChannel%d"%(kernelSize,channel),"JF14_091_S8_HE"]);
+	print(targetDir);
+	if (not os.path.isdir(targetDir)):
+		os.makedirs(targetDir);
 
-	# ret,maskImage_2 = cv.threshold(colorImage_1[:,:,channel],0,255,cv.THRESH_BINARY_INV+cv.THRESH_OTSU);
-	# cv.imwrite(currentDir_+"JF14_091_S8_HE_mask3.bmp",maskImage_2);
-	# filterImageByBlackImage(colorImage_1,maskImage_1);
-	# colorImage_1 = blurForChannels(colorImage_1,channel);
-	# cv.imwrite(currentDir_+"JF14_091_S8_HE_noise.bmp",colorImage_1);
-	# cv.imwrite(currentDir_+"JF14_091_S8_HE_red_2.bmp",colorImage_1[:,:,2]);
-	# targetDir = getRelativeDir(["separateByColorLevel","blurByKer%dChannel%d"%(kernelSize,channel),"JF14_091_S8_HE"]);
-	# print(targetDir);
-	# if (not os.path.isdir(targetDir)):
-	# 	os.makedirs(targetDir);
+	time0 = time.time();
+	colorImage_1 = cv.imread(currentDir_+"JF14_091_S8_HE.bmp",COLORFULL);
+	colorImage_1 = cv.GaussianBlur(colorImage_1,kernel,0);
+	cv.imwrite(targetDir+"JF14_091_S8_HE_GaussianBlur.bmp",colorImage_1);
+	colorImage_1 = reduceNoise(colorImage_1);
+	cv.imwrite(targetDir+"JF14_091_S8_HE_noise.bmp",colorImage_1);
+	maskImage_1 = getImageWithBlackBg(colorImage_1);
+
+
+	ret,maskImage_2 = cv.threshold(colorImage_1[:,:,channel],0,255,cv.THRESH_BINARY_INV+cv.THRESH_OTSU);
+	cv.imwrite(targetDir+"JF14_091_S8_HE_mask3.bmp",maskImage_2);
+	filterImageByBlackImage(colorImage_1,maskImage_1);
+	newImage = np.zeros(colorImage_1.shape,dtype=np.uint8);
+	newImage[::] = 255;
+	
+	for height in range(0,colorImage_1.shape[0]):
+		for weight in range(0,colorImage_1.shape[1]):
+			if (colorImage_1[height,weight]!=np.array([255,255,255])).all():
+				newImage[height,weight,0] = np.uint8(255-(colorImage_1[height,weight,0]-colorImage_1[height,weight,1]))  #B
+				newImage[height,weight,1] = np.uint8(255-(colorImage_1[height,weight,2]-colorImage_1[height,weight,1]))  #G
+				newImage[height,weight,2] = np.uint8(255-(colorImage_1[height,weight,2]-colorImage_1[height,weight,0]));                                     #R
+	cv.imwrite(targetDir+"JF14_091_S8_HE_minus.bmp",newImage);
+
 	# fileFormat,outputGroups = separateColor(colorImage_1,"JF14_091_S8_HE_kernel%dChannel%d"%(kernelSize,channel)+"_group%d.bmp",targetDir);
 	# print("fileFormat %s \ngroups is %d"%(fileFormat,outputGroups));
 	# print("progress 1 over use time %d"%(time.time()-time0));   # 295
