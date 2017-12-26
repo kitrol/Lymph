@@ -6,10 +6,23 @@ import cv2 as cv
 from PIL import Image
 import math
 import time
-import tkinter as tk
-from tkinter import ttk
-import tkinter.filedialog
-import tkinter.messagebox
+import platform
+
+try:
+	from tkinter import *
+except ImportError:  #Python 2.x
+	PythonVersion = 2
+	import Tkinter as tk
+	from Tkinter import *
+	import ttk
+	import tkFileDialog as filedialog
+	import tkMessageBox as messagebox
+else:  #Python 3.x
+	PythonVersion = 3
+	import tkinter as tk
+	from tkinter import ttk
+	import tkinter.filedialog as filedialog
+	import tkinter.messagebox as messagebox
 
 def outputImage(slide,level,resolution,channel,outputFormat,outputFullPathAndName,isByPiece=False):
 	time0 = time.time();
@@ -39,7 +52,8 @@ def outputImage(slide,level,resolution,channel,outputFormat,outputFullPathAndNam
 			targetImage = slide.read_region((0,0),level, resolution,channel);
 			cv.imwrite(outputFullPathAndName+'_c%d_cv_%d.png'%(channel,level),targetImage);
 	return (time.time()-time0);
-class pasareWindowHandle():
+
+class pasareWindowHandle(object):
 	"""docstring for pasareWindowHandle"""
 	def __init__(self):
 		super(pasareWindowHandle, self).__init__()	
@@ -71,7 +85,7 @@ class pasareWindowHandle():
 
 		self.root_.mainloop();
 	def selectInputFile(self):
-		filename = tk.filedialog.askopenfilename();
+		filename = filedialog.askopenfilename();
 		if filename != '':
 			self.openFileNameStr_.set(filename);
 			self.startAnalyzeBtn_['state']=tk.NORMAL;
@@ -80,14 +94,14 @@ class pasareWindowHandle():
 			self.startAnalyzeBtn_['state']=tk.DISABLED;
 
 	def selectOutputDir(self):
-		dirName = tk.filedialog.askdirectory();
+		dirName = filedialog.askdirectory();
 		if dirName != '':
 			self.outPutFolderStr_.set(dirName);
 		else:
 			self.outPutFolderStr_.set(os.path.abspath(os.curdir));
 
 	def warningBox(self,messageInfo):
-		tk.messagebox.showwarning(title='WARNING', 
+		messagebox.showwarning(title='WARNING', 
 								  message=messageInfo);
 
 	def startOutput(self,slide):
@@ -100,11 +114,11 @@ class pasareWindowHandle():
 		# print(self.resolutionChosen_["values"]);
 		# print(self.outputChannleChosen_.get());
 		if self.outPutFolderStr_.get() == "output folder name":
-			result = tk.messagebox.askquestion(title='Select The Output Folder', message='If not selected the output file will do to basic directory!  '+os.path.abspath(os.curdir));
+			result = messagebox.askquestion(title='Select The Output Folder', message='If not selected the output file will do to basic directory!  '+os.path.abspath(os.curdir));
 			if result == 'yes':
 				self.outPutFolderStr_.set(os.path.abspath(os.curdir));
 			else:
-				dirName = tk.filedialog.askdirectory();
+				dirName = filedialog.askdirectory();
 				if dirName != '':
 					self.outPutFolderStr_.set(dirName);
 				else:
@@ -120,6 +134,8 @@ class pasareWindowHandle():
 		channel = int(self.outputChannleChosen_.get()[0]);
 		fileName = os.path.basename(self.openFileNameStr_.get()).split('.')[0];
 		outputName = self.outPutFolderStr_.get()+"\\"+fileName;
+		if platform.system() == 'Darwin':
+			outputName = self.outPutFolderStr_.get()+"/"+fileName;
 		outputFormat = self.outputFormatChosen_.get();
 		self.warningBox('PLEASE WAIT UNTILL SUCCESS MESSAGE');
 		timeCost = outputImage(slide,level,resol,channel,outputFormat,outputName);
@@ -146,8 +162,8 @@ class pasareWindowHandle():
 			if filePrex.lower() == '.svs':
 				slide = openslide.OpenSlide(fileName);
 				bestResolution = slide.level_dimensions[0];
-				maxWidth = 300;
-				height = math.floor((300/bestResolution[0])*bestResolution[1]);
+				maxWidth = 300.0;
+				height = math.floor((maxWidth/bestResolution[0])*bestResolution[1]);
 				size = (maxWidth,height);
 				slide_thumbnail = slide.get_thumbnail(size);
 				from PIL import Image, ImageTk
@@ -202,3 +218,5 @@ class pasareWindowHandle():
 			return False;
 
 newWindow = pasareWindowHandle();
+
+
