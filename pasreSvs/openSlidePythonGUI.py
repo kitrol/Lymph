@@ -24,18 +24,20 @@ else:  #Python 3.x
 	import tkinter.filedialog as filedialog
 	import tkinter.messagebox as messagebox
 
-def outputImage(slide,level,resolution,channel,outputFormat,outputFullPathAndName,isByPiece=False):
+def outputImage(slide,level,resolution,channel,outputFormat,outputFullPathAndName,isByPiece=False,needWriteToDisk=True):
 	time0 = time.time();
 	threshold = 3000;
 	maxSize = 20000;
 	if channel == 1:
-		pass;
+		timecost,threeChannelImage = outputImage(slide,level,resolution,3,outputFormat,outputFullPathAndName,isByPiece,False);
+		gray = cv.cvtColor(threeChannelImage, cv.COLOR_BGR2GRAY);
+		cv.imwrite(outputFullPathAndName+'_c%d_lv_%d%s'%(channel,level,outputFormat),gray);
+		return (time.time()-time0),gray;
 	else:   
 		if (resolution[0] > maxSize) or (resolution[1] > maxSize):
 			rows = int(math.ceil(resolution[0]/threshold));
 			columns = int(math.ceil(resolution[1]/threshold));
 			targetImage = np.zeros([resolution[1],resolution[0],channel],dtype=np.uint8);
-
 			for x in range(0,rows):
 				for y in range(0,columns):
 					width = height = threshold;
@@ -45,13 +47,16 @@ def outputImage(slide,level,resolution,channel,outputFormat,outputFullPathAndNam
 						height = resolution[1]- y*threshold;
 					imagePiece = slide.read_region((x*threshold,y*threshold),level, (width,height),channel);
 					targetImage[y*threshold:y*threshold+height,x*threshold:x*threshold+width,:] = imagePiece;
-					if isByPiece:
+					if isByPiece and needWriteToDisk:
 						cv.imwrite(outputFullPathAndName+'_c%d_lv_%d_row_%d_clo_%d%s'%(channel,level,x,y,outputFormat),imagePiece);
-			cv.imwrite(outputFullPathAndName+'_c%d_cv_%d.png'%(channel,level),targetImage);
+			if needWriteToDisk:
+				cv.imwrite(outputFullPathAndName+'_c%d_lv_%d_row_%d_clo_%d%s'%(channel,level,x,y,outputFormat),targetImage);
+			return (time.time()-time0),targetImage;
 		else:
 			targetImage = slide.read_region((0,0),level, resolution,channel);
-			cv.imwrite(outputFullPathAndName+'_c%d_cv_%d.png'%(channel,level),targetImage);
-	return (time.time()-time0);
+			if needWriteToDisk:
+				cv.imwrite(outputFullPathAndName+'_c%d_lv_%d%s'%(channel,level,outputFormat),targetImage);
+			return (time.time()-time0),targetImage;
 
 class pasareWindowHandle(object):
 	"""docstring for pasareWindowHandle"""
@@ -107,6 +112,10 @@ class pasareWindowHandle(object):
 	def startOutput(self,slide):
 		self.outPutDirBtn_['state']=tk.DISABLED;
 		self.openFileBtn_['state']=tk.DISABLED;
+		self.startAnalyzeBtn_['state']=tk.DISABLED;
+		self.resetBtn_['state']=tk.DISABLED;
+		self.openFileBtn_['state']=tk.DISABLED;
+
 		# print(self.resolutionChosen_.get());
 		# print(self.outputFormatChosen_.get());
 		# print(self.outPutFolderStr_.get());
@@ -138,20 +147,28 @@ class pasareWindowHandle(object):
 			outputName = self.outPutFolderStr_.get()+"/"+fileName;
 		outputFormat = self.outputFormatChosen_.get();
 		self.warningBox('PLEASE WAIT UNTILL SUCCESS MESSAGE');
-		timeCost = outputImage(slide,level,resol,channel,outputFormat,outputName);
+		timeCost,imageItem = outputImage(slide,level,resol,channel,outputFormat,outputName);
 		self.warningBox('PROCESS SUCCESS!!!\nUSING TIME %d SECONDS '%(timeCost));
-		self.openFileNameStr_.set("openFileName");
-		self.openFileBtn_['state']=tk.NORMAL;
+
 		self.outPutDirBtn_['state']=tk.NORMAL;
+		self.openFileBtn_['state']=tk.NORMAL;
+		self.startAnalyzeBtn_['state']=tk.NORMAL;
+		self.resetBtn_['state']=tk.NORMAL;
+		self.openFileBtn_['state']=tk.NORMAL;
+
 	def reset(self):
-		print("reset reset reset reset");
 		self.openFileNameStr_.set("openFileName");
 		self.outPutFolderStr_.set("output folder name");
 		self.startAnalyzeBtn_['state']=tk.DISABLED;
 		self.resetBtn_['state']=tk.DISABLED;
+
 		if hasattr(self,'thumbnail_'):
-			self.thumbnail_.pack_forget();
-			self.thumbnail_ = None;
+			self.thumbnail_.destroy();
+			delattr(self,'thumbnail_');
+		if hasattr(self,'rootFrame_'):
+			self.rootFrame_.destroy();
+			delattr(self,'rootFrame_');
+
 	def startAnalyze(self):
 		self.openFileBtn_['state']=tk.DISABLED;
 		self.startAnalyzeBtn_['state']=tk.DISABLED;
@@ -169,15 +186,15 @@ class pasareWindowHandle(object):
 				from PIL import Image, ImageTk
 				render= ImageTk.PhotoImage(slide_thumbnail);
 				if hasattr(self,'thumbnail_'):
-					self.thumbnail_.pack_forget();
-					self.thumbnail_ = None;
+					self.thumbnail_.destroy();
+					delattr(self,'thumbnail_');
 				self.thumbnail_ = tk.Label(self.root_,image=render);
 				self.thumbnail_.image = render;
 				self.thumbnail_.place(x=400,y=230);
 
 				if hasattr(self,'rootFrame_'):
-					self.rootFrame_.pack_forget();
-					self.rootFrame_ = None;
+					self.rootFrame_.destroy();
+					delattr(self,'rootFrame_');
 				self.btnArray_ = [];
 				self.rootFrame_ = tk.Frame(self.root_);
 				self.rootFrame_.place(x=20,y=200,anchor=tk.NW);
@@ -210,6 +227,7 @@ class pasareWindowHandle(object):
 				startOutputBtn = tk.Button(self.rootFrame_, text="Output",command=lambda:self.startOutput(slide));
 				startOutputBtn.pack(side=tk.TOP,padx=15,pady=5);
 				self.openFileBtn_['state']=tk.NORMAL;
+				self.resetBtn_['state']=tk.NORMAL;
 			else:
 				self.openFileBtn_['state']=tk.NORMAL;
 				return False;
