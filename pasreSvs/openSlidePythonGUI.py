@@ -7,6 +7,7 @@ from PIL import Image
 import math
 import time
 import platform
+import shutil
 
 try:
 	from tkinter import *
@@ -23,18 +24,27 @@ else:  #Python 3.x
 	from tkinter import ttk
 	import tkinter.filedialog as filedialog
 	import tkinter.messagebox as messagebox
-
-def outputImage(slide,level,resolution,channel,outputFormat,outputFullPathAndName,isByPiece=False,needWriteToDisk=True):
+def outputPieceOfSlide(slide,outputBigImage=None,pieceFolder):
+	pass
+def outputImage(slide,level,resolution,channel,outputFormat,outputFullPathAndName,isByPiece=False,pieceSize=0,needWriteToDisk=True):
 	time0 = time.time();
-	threshold = 3000;
+	threshold = int(pieceSize);
+	pieceDir = outputFullPathAndName;
+	if (threshold == 0) or (not isByPiece):
+		threshold = 3000;
 	maxSize = 20000;
 	if channel == 1:
 		timecost,threeChannelImage = outputImage(slide,level,resolution,3,outputFormat,outputFullPathAndName,isByPiece,False);
 		gray = cv.cvtColor(threeChannelImage, cv.COLOR_BGR2GRAY);
 		cv.imwrite(outputFullPathAndName+'_c%d_lv_%d%s'%(channel,level,outputFormat),gray);
 		return (time.time()-time0),gray;
-	else:   
-		if (resolution[0] > maxSize) or (resolution[1] > maxSize):
+	else:
+		if isByPiece:
+			pieceDir = (pieceDir+"pieceSize=%d"%(threshold));
+			if os.path.exists(pieceDir):
+	 			shutil.rmtree(pieceDir,True);
+			os.mkdir(pieceDir);
+		if (resolution[0] > maxSize) or (resolution[1] > maxSize):  ## image is too big to analyse
 			rows = int(math.ceil(resolution[0]/threshold));
 			columns = int(math.ceil(resolution[1]/threshold));
 			targetImage = np.zeros([resolution[1],resolution[0],channel],dtype=np.uint8);
@@ -48,7 +58,7 @@ def outputImage(slide,level,resolution,channel,outputFormat,outputFullPathAndNam
 					imagePiece = slide.read_region((x*threshold,y*threshold),level, (width,height),channel);
 					targetImage[y*threshold:y*threshold+height,x*threshold:x*threshold+width,:] = imagePiece;
 					if isByPiece and needWriteToDisk:
-						cv.imwrite(outputFullPathAndName+'_c%d_lv_%d_row_%d_clo_%d%s'%(channel,level,x,y,outputFormat),imagePiece);
+						cv.imwrite(pieceDir+'_c%d_lv_%d_row_%d_clo_%d%s'%(channel,level,x,y,outputFormat),imagePiece);
 			if needWriteToDisk:
 				cv.imwrite(outputFullPathAndName+'_c%d_lv_%d%s'%(channel,level,outputFormat),targetImage);
 			return (time.time()-time0),targetImage;
@@ -89,7 +99,6 @@ class pasareWindowHandle(object):
 		self.resetBtn_['state']=tk.DISABLED;
 
 		self.isByPiece_ = False;
-
 
 		self.root_.mainloop();
 	def selectInputFile(self):
@@ -152,8 +161,9 @@ class pasareWindowHandle(object):
 		if platform.system() == 'Darwin':
 			outputName = self.outPutFolderStr_.get()+"/"+fileName;
 		outputFormat = self.outputFormatChosen_.get();
+		pieceSize = self.pieceSizeChosen_.get();
 		self.warningBox('PLEASE WAIT UNTILL SUCCESS MESSAGE');
-		timeCost,imageItem = outputImage(slide,level,resol,channel,outputFormat,outputName,isByPiece=self.isByPiece_);
+		timeCost,imageItem = outputImage(slide,level,resol,channel,outputFormat,outputName,isByPiece=self.isByPiece_,pieceSize=pieceSize);
 		self.warningBox('PROCESS SUCCESS!!!\nUSING TIME %d SECONDS '%(timeCost));
 
 		self.outPutDirBtn_['state']=tk.NORMAL;
@@ -215,12 +225,11 @@ class pasareWindowHandle(object):
 				self.resolutionChosen_.current(0);
 				self.resolutionChosen_.place(x=120,y=50,anchor=tk.CENTER);
 
-				self.isByPieceCheck_ = Checkbutton(self.rootFrame_,text ='output Piece?',command = self.onIsByPieceCheck());
-				# self.isByPieceCheck_.pack(side=tk.RIGHT,padx=15,pady=5);
+				self.isByPieceCheck_ = Checkbutton(self.rootFrame_,text ='output Piece?',command = lambda:self.onIsByPieceCheck());
 				self.isByPieceCheck_.place(x=350,y=20,anchor=tk.CENTER);
  
-				choseFormatLabel = tk.Label(self.rootFrame_, text="Choose piece size", font=("Arial",12), width=25, height=1);
-				choseFormatLabel.place(x=350,y=50,anchor=tk.CENTER);
+				pieceSizeLabel = tk.Label(self.rootFrame_, text="Choose piece size", font=("Arial",12), width=25, height=1);
+				pieceSizeLabel.place(x=350,y=50,anchor=tk.CENTER);
 
 				self.pieceSize_ = tk.StringVar().set("500");
 				self.pieceSizeChosen_ = ttk.Combobox(self.rootFrame_, width=20, textvariable=self.pieceSize_, state="readonly");
@@ -236,14 +245,13 @@ class pasareWindowHandle(object):
 				self.outputFormatChosen_.current(0);
 				self.outputFormatChosen_.place(x=120,y=110,anchor=tk.CENTER);
 
-				choseFormatLabel = tk.Label(self.rootFrame_, text="Choose the output Channel", font=("Arial",12), width=25, height=1);
-				choseFormatLabel.place(x=120,y=140,anchor=tk.CENTER);
+				choseChannelLabel = tk.Label(self.rootFrame_, text="Choose the output Channel", font=("Arial",12), width=25, height=1);
+				choseChannelLabel.place(x=120,y=140,anchor=tk.CENTER);
 				self.outputChannel_ = tk.StringVar().set("3:RGB");
 				self.outputChannleChosen_ = ttk.Combobox(self.rootFrame_, width=20, textvariable=self.outputChannel_, state="readonly");
 				self.outputChannleChosen_["values"] = ("1:gray","3:RGB","4:RGBA");
 				self.outputChannleChosen_.current(1);
 				self.outputChannleChosen_.place(x=120,y=170,anchor=tk.CENTER);
-
 
 				self.startOutputBtn_ = tk.Button(self.rootFrame_, text="Output",command=lambda:self.startOutput(slide));
 				self.startOutputBtn_.place(x=120,y=210,anchor=tk.CENTER);
