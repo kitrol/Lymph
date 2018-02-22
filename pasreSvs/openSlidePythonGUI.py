@@ -24,49 +24,58 @@ else:  #Python 3.x
 	from tkinter import ttk
 	import tkinter.filedialog as filedialog
 	import tkinter.messagebox as messagebox
-def outputPieceOfSlide(slide,outputBigImage=None,pieceFolder):
-	pass
-def outputImage(slide,level,resolution,channel,outputFormat,outputFullPathAndName,isByPiece=False,pieceSize=0,needWriteToDisk=True):
+
+def outputImage(slide,level,resolution,channel,outputFormat,outputFullPathAndName,isByPiece=False,pieceSize=0):##needWriteToDisk=True
 	time0 = time.time();
 	threshold = int(pieceSize);
 	pieceDir = outputFullPathAndName;
+	if isByPiece:
+		pieceDir = (pieceDir+"pieceSize=%d_Channel_%d"%(threshold,channel));
+		pieceDir = pieceDir+"\\";
+		if platform.system() == 'Darwin':
+			pieceDir = pieceDir+"/";
+		if os.path.exists(pieceDir):
+			shutil.rmtree(pieceDir,True);
+		os.mkdir(pieceDir);
+	
 	if (threshold == 0) or (not isByPiece):
 		threshold = 3000;
 	maxSize = 20000;
-	if channel == 1:
-		timecost,threeChannelImage = outputImage(slide,level,resolution,3,outputFormat,outputFullPathAndName,isByPiece,False);
-		gray = cv.cvtColor(threeChannelImage, cv.COLOR_BGR2GRAY);
-		cv.imwrite(outputFullPathAndName+'_c%d_lv_%d%s'%(channel,level,outputFormat),gray);
-		return (time.time()-time0),gray;
-	else:
-		if isByPiece:
-			pieceDir = (pieceDir+"pieceSize=%d"%(threshold));
-			if os.path.exists(pieceDir):
-	 			shutil.rmtree(pieceDir,True);
-			os.mkdir(pieceDir);
-		if (resolution[0] > maxSize) or (resolution[1] > maxSize):  ## image is too big to analyse
-			rows = int(math.ceil(resolution[0]/threshold));
-			columns = int(math.ceil(resolution[1]/threshold));
-			targetImage = np.zeros([resolution[1],resolution[0],channel],dtype=np.uint8);
-			for x in range(0,rows):
-				for y in range(0,columns):
-					width = height = threshold;
-					if (x+1)*threshold>resolution[0]:
-						width = resolution[0]- x*threshold;
-					if (y+1)*threshold>resolution[1]:
-						height = resolution[1]- y*threshold;
-					imagePiece = slide.read_region((x*threshold,y*threshold),level, (width,height),channel);
+	# if channel == 1:
+	# 	timecost,threeChannelImage = outputImage(slide,level,resolution,3,outputFormat,outputFullPathAndName,isByPiece,needWriteToDisk=False);
+	# 	gray = cv.cvtColor(threeChannelImage, cv.COLOR_BGR2GRAY);
+	# 	cv.imwrite(outputFullPathAndName+'_c%d_lv_%d%s'%(channel,level,outputFormat),gray);
+	# 	return (time.time()-time0),gray;
+	# else:
+	if (resolution[0] > maxSize) or (resolution[1] > maxSize) or isByPiece:  ## image is too big to analyse
+		rows = int(math.ceil(resolution[0]/threshold));
+		columns = int(math.ceil(resolution[1]/threshold));
+		targetImage = np.zeros([resolution[1],resolution[0],channel],dtype=np.uint8);
+		for x in range(0,rows):
+			for y in range(0,columns):
+				width = height = threshold;
+				if (x+1)*threshold>resolution[0]:
+					width = resolution[0]- x*threshold;
+				if (y+1)*threshold>resolution[1]:
+					height = resolution[1]- y*threshold;
+				imagePiece = slide.read_region((x*threshold,y*threshold),level, (width,height),4);
+				if channel == 1:
+					imagePiece = cv.cvtColor(imagePiece, cv.COLOR_BGR2GRAY);
+					imagePiece = imagePiece.reshape((height,width,1));
+					print("width is %d height is %d"%(width,height));
+					targetImage[y*threshold:y*threshold+width,x*threshold:x*threshold+height] = imagePiece;
+				else:
 					targetImage[y*threshold:y*threshold+height,x*threshold:x*threshold+width,:] = imagePiece;
-					if isByPiece and needWriteToDisk:
-						cv.imwrite(pieceDir+'_c%d_lv_%d_row_%d_clo_%d%s'%(channel,level,x,y,outputFormat),imagePiece);
-			if needWriteToDisk:
-				cv.imwrite(outputFullPathAndName+'_c%d_lv_%d%s'%(channel,level,outputFormat),targetImage);
-			return (time.time()-time0),targetImage;
-		else:
-			targetImage = slide.read_region((0,0),level, resolution,channel);
-			if needWriteToDisk:
-				cv.imwrite(outputFullPathAndName+'_c%d_lv_%d%s'%(channel,level,outputFormat),targetImage);
-			return (time.time()-time0),targetImage;
+				if isByPiece:
+					cv.imwrite(pieceDir+'_c%d_lv_%d_row_%d_clo_%d%s'%(channel,level,x,y,outputFormat),imagePiece);
+			cv.imwrite(outputFullPathAndName+'_c%d_lv_%d%s'%(channel,level,outputFormat),targetImage);
+		return (time.time()-time0),targetImage;
+	else:
+		targetImage = slide.read_region((0,0),level, resolution,4);
+		if channel == 1:
+			targetImage = cv.cvtColor(targetImage, cv.COLOR_BGR2GRAY);
+		cv.imwrite(outputFullPathAndName+'_c%d_lv_%d%s'%(channel,level,outputFormat),targetImage);
+		return (time.time()-time0),targetImage;
 
 class pasareWindowHandle(object):
 	"""docstring for pasareWindowHandle"""
