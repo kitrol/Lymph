@@ -58,7 +58,7 @@ def outputImage(slide,level,resolution,channel,outputFormat,outputFullPathAndNam
 					width = resolution[0]- x*threshold;
 				if (y+1)*threshold>resolution[1]:
 					height = resolution[1]- y*threshold;
-				imagePiece = slide.read_region((x*threshold,y*threshold),level, (width,height),4);
+				imagePiece = slide.read_region((x*threshold,y*threshold),level, (width,height),channel);
 				if channel == 1:
 					imagePiece = cv.cvtColor(imagePiece, cv.COLOR_BGR2GRAY);
 					imagePiece = imagePiece.reshape((height,width,1));
@@ -71,7 +71,7 @@ def outputImage(slide,level,resolution,channel,outputFormat,outputFullPathAndNam
 			cv.imwrite(outputFullPathAndName+'_c%d_lv_%d%s'%(channel,level,outputFormat),targetImage);
 		return (time.time()-time0),targetImage;
 	else:
-		targetImage = slide.read_region((0,0),level, resolution,4);
+		targetImage = slide.read_region((0,0),level, resolution,channel);
 		if channel == 1:
 			targetImage = cv.cvtColor(targetImage, cv.COLOR_BGR2GRAY);
 		cv.imwrite(outputFullPathAndName+'_c%d_lv_%d%s'%(channel,level,outputFormat),targetImage);
@@ -243,7 +243,7 @@ class pasareWindowHandle(object):
 				self.pieceSize_ = tk.StringVar().set("500");
 				self.pieceSizeChosen_ = ttk.Combobox(self.rootFrame_, width=20, textvariable=self.pieceSize_, state="readonly");
 				self.pieceSizeChosen_["values"] = ("100","200","300","400","500","600","700","800","900","1000","2000","3000");
-				self.pieceSizeChosen_.current(4);
+				self.pieceSizeChosen_.current(11);
 				self.pieceSizeChosen_.place(x=350,y=80,anchor=tk.CENTER);
 
 				choseFormatLabel = tk.Label(self.rootFrame_, text="Choose the output Fromat", font=("Arial",12), width=25, height=1);
