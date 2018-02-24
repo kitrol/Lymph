@@ -36,18 +36,29 @@ def outputImage(slide,level,resolution,channel,outputFormat,outputFullPathAndNam
 		if platform.system() == 'Darwin':
 			pieceDir = pieceDir+"/";
 		if os.path.exists(pieceDir):
-			shutil.rmtree(pieceDir,True);
-		os.mkdir(pieceDir);
+			for f in pieceDir:
+				filePath=os.path.join(pieceDir,f); 
+				if os.path.isfile(filePath):
+					os.remove(filePath);
+		else:
+			os.mkdir(pieceDir);
+			# shutil.rmtree(pieceDir,True);
 	
 	if (threshold == 0) or (not isByPiece):
 		threshold = 3000;
-	maxSize = 20000;
+	maxSize = 10000;
 	# if channel == 1:
 	# 	timecost,threeChannelImage = outputImage(slide,level,resolution,3,outputFormat,outputFullPathAndName,isByPiece,needWriteToDisk=False);
 	# 	gray = cv.cvtColor(threeChannelImage, cv.COLOR_BGR2GRAY);
 	# 	cv.imwrite(outputFullPathAndName+'_c%d_lv_%d%s'%(channel,level,outputFormat),gray);
 	# 	return (time.time()-time0),gray;
 	# else:
+
+	# print("level is %d"%(level));
+	# imagePiece_ = slide.read_region((a*threshold,b*threshold),level,(threshold,threshold),4);
+	# cv.imwrite(pieceDir+'YYYYYY_c%d_lv_%d_row_%d_clo_%d%s'%(3,channel,a,b,outputFormat),imagePiece_);
+	# return (time.time()-time0),imagePiece_;
+	
 	if (resolution[0] > maxSize) or (resolution[1] > maxSize) or isByPiece:  ## image is too big to analyse
 		rows = int(math.ceil(resolution[0]/threshold));
 		columns = int(math.ceil(resolution[1]/threshold));
@@ -69,7 +80,7 @@ def outputImage(slide,level,resolution,channel,outputFormat,outputFullPathAndNam
 					targetImage[y*threshold:y*threshold+height,x*threshold:x*threshold+width,:] = imagePiece;
 				if isByPiece:
 					cv.imwrite(pieceDir+'_c%d_lv_%d_row_%d_clo_%d%s'%(channel,level,x,y,outputFormat),imagePiece);
-			cv.imwrite(outputFullPathAndName+'_c%d_lv_%d%s'%(channel,level,outputFormat),targetImage);
+			cv.imwrite(pieceDir+'_c%d_lv_%d%s'%(channel,level,outputFormat),targetImage);
 		return (time.time()-time0),targetImage;
 	else:
 		targetImage = slide.read_region((0,0),level, resolution,channel);
@@ -178,7 +189,7 @@ class pasareWindowHandle(object):
 		outputFormat = self.outputFormatChosen_.get();
 		pieceSize = self.pieceSizeChosen_.get();
 		self.warningBox('PLEASE WAIT UNTILL SUCCESS MESSAGE');
-		timeCost,imageItem = outputImage(slide,level,resol,channel,outputFormat,outputName,isByPiece=self.isByPiece_,pieceSize=pieceSize);
+		timeCost,imageItem = outputImage(slide,level,resol,channel,outputFormat,outputName,isByPiece=True,pieceSize=pieceSize);#self.isByPiece_
 		self.warningBox('PROCESS SUCCESS!!!\nUSING TIME %d SECONDS '%(timeCost));
 
 		self.outPutDirBtn_['state']=tk.NORMAL;
