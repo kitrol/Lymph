@@ -30,7 +30,7 @@ def initMutiChannelImage(slide,level,resolution,outputFormat):
 	# default muti channel for 3 channels
 	maxSize = 20000;
 	threshold = 5000;
-	channel=3;
+	channel=4;
 	if (resolution[0] > maxSize) or (resolution[1] > maxSize):  ## image is too big to analyse
 		rows = int(math.ceil(resolution[0]/threshold));
 		columns = int(math.ceil(resolution[1]/threshold));
@@ -95,10 +95,10 @@ def outputImage(slide,level,resolution,channel,outputFormat,outputFullPathAndNam
 	if channel == 1:
 		singleChannelImage = cv.cvtColor(mutiChannelImage, cv.COLOR_BGR2GRAY);
 		targetImage = singleChannelImage;
-		cv.imwrite(outputFullPathAndName+'_c%d_lv_%d%s'%(channel,level,outputFormat),singleChannelImage);
-	else:
-		cv.imwrite(outputFullPathAndName+'_c%d_lv_%d%s'%(channel,level,outputFormat),mutiChannelImage);
+	elif channel == 3:
+		targetImage = mutiChannelImage[:,:,:3];
 		
+	cv.imwrite(outputFullPathAndName+'_c%d_lv_%d%s'%(channel,level,outputFormat),targetImage);
 	if isByPiece:
 		outputImageByPiece(targetImage,pieceSize,channel,level,outputFormat,pieceDir);
 
