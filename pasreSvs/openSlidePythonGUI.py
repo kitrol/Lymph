@@ -52,10 +52,10 @@ def initMutiChannelImage(slide,level,resolution,outputFormat):
 		targetImage = slide.read_region((0,0),level, resolution,channel);
 		return targetImage;
 
-def initPieceOutputDir(outputFullPathAndName,channel,isByPiece,pieceSize):
+def initPieceOutputDir(outputFullPathAndName,level,channel,isByPiece,pieceSize):
 	targetPieceDir = outputFullPathAndName;
 	if isByPiece:
-		targetPieceDir = (targetPieceDir+"pieceSize=%d_Channel_%d"%(pieceSize,channel));
+		targetPieceDir = (targetPieceDir+"_lv%d_pieceSize=%d_Channel_%d"%(level,pieceSize,channel));
 		targetPieceDir = targetPieceDir+"\\";
 		if platform.system() == 'Darwin':
 			targetPieceDir = targetPieceDir+"/";
@@ -72,6 +72,7 @@ def outputImageByPiece(sourceImage,pieceSize,channel,level,outputFormat,outputDi
 	resolution = sourceImage.shape;
 	rows = int(math.ceil(resolution[0]/pieceSize));
 	columns = int(math.ceil(resolution[1]/pieceSize));
+	pieceDetailFile(outputDir,resolution[0],resolution[1],pieceSize,rows,columns);
 	imagePiece = np.zeros([pieceSize,pieceSize,channel],dtype=np.uint8);
 	for x in range(0,rows):
 		for y in range(0,columns):
@@ -85,6 +86,12 @@ def outputImageByPiece(sourceImage,pieceSize,channel,level,outputFormat,outputDi
 			else:
 				imagePiece = sourceImage[x*pieceSize:x*pieceSize+width,y*pieceSize:y*pieceSize+height,:];
 			cv.imwrite(outputDir+'_c%d_lv_%d_row_%d_clo_%d%s'%(channel,level,x,y,outputFormat),imagePiece);
+
+def pieceDetailFile(outputDir,width,height,pieceSize,rows,columns):
+	file = open(outputDir+"des", "w+");
+	string = 'width:%d\nheight:%d\npieceSize:%s\rrows:%d\ncolumns:%d'%(width,height,str(pieceSize),rows,columns);
+	file.write(string);
+	file.close();
 			
 def outputImage(slide,level,resolution,channel,outputFormat,outputFullPathAndName,isByPiece=False,pieceSize=0):##needWriteToDisk=True
 	time0 = time.time();
@@ -92,7 +99,7 @@ def outputImage(slide,level,resolution,channel,outputFormat,outputFullPathAndNam
 		pieceSize = 3000;
 	maxSize = 20000;
 
-	pieceDir = initPieceOutputDir(outputFullPathAndName,channel,isByPiece,pieceSize);
+	pieceDir = initPieceOutputDir(outputFullPathAndName,level,channel,isByPiece,pieceSize);
 	mutiChannelImage = initMutiChannelImage(slide,level,resolution,outputFormat);
 	targetImage = mutiChannelImage;
 	if channel == 1:
@@ -104,7 +111,7 @@ def outputImage(slide,level,resolution,channel,outputFormat,outputFullPathAndNam
 	cv.imwrite(outputFullPathAndName+'_c%d_lv_%d%s'%(channel,level,outputFormat),targetImage);
 	if isByPiece:
 		outputImageByPiece(targetImage,pieceSize,channel,level,outputFormat,pieceDir);
-
+	
 	return (time.time()-time0);
 
 class pasareWindowHandle(object):
