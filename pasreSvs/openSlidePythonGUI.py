@@ -261,89 +261,85 @@ class pasareWindowHandle(object):
 		self.startAnalyzeBtn_['state']=tk.DISABLED;
 
 		fileName = self.openFileNameStr_.get();
-		if fileName != '':
-			filePrex = fileName[-4:];
-			if filePrex.lower() == '.svs':
-				slide = openslide.OpenSlide(fileName);
-				
-				bestResolution = slide.level_dimensions[0];
-				maxWidth = 300.0;
-				height = math.floor((maxWidth/bestResolution[0])*bestResolution[1]);
-				size = self.thumbnailSize_ = (maxWidth,height);
+		filePrex = fileName.split('.')[1];
+		
+		if filePrex.lower() == 'tiff' or filePrex.lower() == 'svs':
+			slide = openslide.OpenSlide(fileName);
+			
+			bestResolution = slide.level_dimensions[0];
+			maxWidth = 300.0;
+			height = math.floor((maxWidth/bestResolution[0])*bestResolution[1]);
+			size = self.thumbnailSize_ = (maxWidth,height);
+
+			slide_thumbnail = slide.get_thumbnail(size);
+			from PIL import Image, ImageTk
+			self.render_= ImageTk.PhotoImage(slide_thumbnail);
+			if hasattr(self,'thumbnail_'):
+				self.thumbnail_.destroy();
+				delattr(self,'thumbnail_');
+			self.thumbnail_ = tk.Label(self.root_,image=self.render_);
+			self.thumbnail_.image = self.render_;
+			self.thumbnail_.place(x=470,y=230);
+
+			if hasattr(self,'rootFrame_'):
+				self.rootFrame_.destroy();
+				delattr(self,'rootFrame_');
+			self.rootFrame_ = tk.Frame(self.root_,width=500,height=400);##bg='blue'
+			self.rootFrame_.place(x=20,y=200,anchor=tk.NW);
 
 
-				slide_thumbnail = slide.get_thumbnail(size);
-				from PIL import Image, ImageTk
-				self.render_= ImageTk.PhotoImage(slide_thumbnail);
-				if hasattr(self,'thumbnail_'):
-					self.thumbnail_.destroy();
-					delattr(self,'thumbnail_');
-				self.thumbnail_ = tk.Label(self.root_,image=self.render_);
-				self.thumbnail_.image = self.render_;
-				self.thumbnail_.place(x=470,y=230);
+			from PIL import Image, ImageTk
+			self.canvas_ = Canvas(self.root_, width=maxWidth,height=height);
+			self.canvas_.place(x=470,y=230);
+			self.canvas_.create_image(maxWidth/2,height/2,anchor=tk.CENTER,image=self.render_);
+			# self.canvas.create_line(0,100,200,100,fill='red');
+			
+        
+			choseResolutionLabel = tk.Label(self.rootFrame_, text="Choose the output Resolution", font=("Arial",12), width=25, height=1);
+			choseResolutionLabel.place(x=120,y=20,anchor=tk.CENTER);
 
-				if hasattr(self,'rootFrame_'):
-					self.rootFrame_.destroy();
-					delattr(self,'rootFrame_');
-				self.rootFrame_ = tk.Frame(self.root_,width=500,height=400);##bg='blue'
-				self.rootFrame_.place(x=20,y=200,anchor=tk.NW);
+			self.resolutions_ = tk.StringVar().set(slide.level_dimensions[0]);
+			self.resolutionChosen_ = ttk.Combobox(self.rootFrame_, width=20, textvariable=self.resolutions_, state="readonly");#,command= lambda:self.onSizeChange()
+			self.resolutionChosen_["values"] = slide.level_dimensions;
+			self.resolutionChosen_.current(0);
+			self.resolutionChosen_.place(x=120,y=50,anchor=tk.CENTER);
+			self.resolutionChosen_.bind("<<ComboboxSelected>>",self.onSizeChange);
 
+			self.isByPieceCheck_ = Checkbutton(self.rootFrame_,text ='output Piece?',command = lambda:self.onIsByPieceCheck());
+			self.isByPieceCheck_.place(x=350,y=20,anchor=tk.CENTER);
 
-				from PIL import Image, ImageTk
-				self.canvas_ = Canvas(self.root_, width=maxWidth,height=height);
-				self.canvas_.place(x=470,y=230);
-				self.canvas_.create_image(maxWidth/2,height/2,anchor=tk.CENTER,image=self.render_);
-				# self.canvas.create_line(0,100,200,100,fill='red');
-				
-            
-				choseResolutionLabel = tk.Label(self.rootFrame_, text="Choose the output Resolution", font=("Arial",12), width=25, height=1);
-				choseResolutionLabel.place(x=120,y=20,anchor=tk.CENTER);
+			pieceSizeLabel = tk.Label(self.rootFrame_, text="Choose piece size", font=("Arial",12), width=25, height=1);
+			pieceSizeLabel.place(x=350,y=50,anchor=tk.CENTER);
 
-				self.resolutions_ = tk.StringVar().set(slide.level_dimensions[0]);
-				self.resolutionChosen_ = ttk.Combobox(self.rootFrame_, width=20, textvariable=self.resolutions_, state="readonly");#,command= lambda:self.onSizeChange()
-				self.resolutionChosen_["values"] = slide.level_dimensions;
-				self.resolutionChosen_.current(0);
-				self.resolutionChosen_.place(x=120,y=50,anchor=tk.CENTER);
-				self.resolutionChosen_.bind("<<ComboboxSelected>>",self.onSizeChange);
+			self.pieceSize_ = tk.StringVar().set("500");
+			self.pieceSizeChosen_ = ttk.Combobox(self.rootFrame_, width=20, textvariable=self.pieceSize_, state="readonly");
+			self.pieceSizeChosen_["values"] = ("100","200","300","400","500","600","700","800","900","1000","3000","10000");
+			self.pieceSizeChosen_.current(11);
+			self.pieceSizeChosen_.place(x=350,y=80,anchor=tk.CENTER);
+			self.pieceSizeChosen_.bind("<<ComboboxSelected>>",self.onSizeChange);
 
-				self.isByPieceCheck_ = Checkbutton(self.rootFrame_,text ='output Piece?',command = lambda:self.onIsByPieceCheck());
-				self.isByPieceCheck_.place(x=350,y=20,anchor=tk.CENTER);
- 
-				pieceSizeLabel = tk.Label(self.rootFrame_, text="Choose piece size", font=("Arial",12), width=25, height=1);
-				pieceSizeLabel.place(x=350,y=50,anchor=tk.CENTER);
+			choseFormatLabel = tk.Label(self.rootFrame_, text="Choose the output Fromat", font=("Arial",12), width=25, height=1);
+			choseFormatLabel.place(x=120,y=80,anchor=tk.CENTER);
+			self.outputFormat_ = tk.StringVar().set(".png");
+			self.outputFormatChosen_ = ttk.Combobox(self.rootFrame_, width=20, textvariable=self.outputFormat_, state="readonly");
+			self.outputFormatChosen_["values"] = (".png",".jpeg",".bmp");
+			self.outputFormatChosen_.current(0);
+			self.outputFormatChosen_.place(x=120,y=110,anchor=tk.CENTER);
 
-				self.pieceSize_ = tk.StringVar().set("500");
-				self.pieceSizeChosen_ = ttk.Combobox(self.rootFrame_, width=20, textvariable=self.pieceSize_, state="readonly");
-				self.pieceSizeChosen_["values"] = ("100","200","300","400","500","600","700","800","900","1000","2000","3000");
-				self.pieceSizeChosen_.current(11);
-				self.pieceSizeChosen_.place(x=350,y=80,anchor=tk.CENTER);
-				self.pieceSizeChosen_.bind("<<ComboboxSelected>>",self.onSizeChange);
+			choseChannelLabel = tk.Label(self.rootFrame_, text="Choose the output Channel", font=("Arial",12), width=25, height=1);
+			choseChannelLabel.place(x=120,y=140,anchor=tk.CENTER);
+			self.outputChannel_ = tk.StringVar().set("3:RGB");
+			self.outputChannleChosen_ = ttk.Combobox(self.rootFrame_, width=20, textvariable=self.outputChannel_, state="readonly");
+			self.outputChannleChosen_["values"] = ("1:gray","3:RGB","4:RGBA");
+			self.outputChannleChosen_.current(1);
+			self.outputChannleChosen_.place(x=120,y=170,anchor=tk.CENTER);
 
-				choseFormatLabel = tk.Label(self.rootFrame_, text="Choose the output Fromat", font=("Arial",12), width=25, height=1);
-				choseFormatLabel.place(x=120,y=80,anchor=tk.CENTER);
-				self.outputFormat_ = tk.StringVar().set(".png");
-				self.outputFormatChosen_ = ttk.Combobox(self.rootFrame_, width=20, textvariable=self.outputFormat_, state="readonly");
-				self.outputFormatChosen_["values"] = (".png",".jpeg",".bmp");
-				self.outputFormatChosen_.current(0);
-				self.outputFormatChosen_.place(x=120,y=110,anchor=tk.CENTER);
+			self.startOutputBtn_ = tk.Button(self.rootFrame_, text="Output",command=lambda:self.startOutput(slide));
+			self.startOutputBtn_.place(x=120,y=210,anchor=tk.CENTER);
+			self.openFileBtn_['state']=tk.NORMAL;
+			self.resetBtn_['state']=tk.NORMAL;
 
-				choseChannelLabel = tk.Label(self.rootFrame_, text="Choose the output Channel", font=("Arial",12), width=25, height=1);
-				choseChannelLabel.place(x=120,y=140,anchor=tk.CENTER);
-				self.outputChannel_ = tk.StringVar().set("3:RGB");
-				self.outputChannleChosen_ = ttk.Combobox(self.rootFrame_, width=20, textvariable=self.outputChannel_, state="readonly");
-				self.outputChannleChosen_["values"] = ("1:gray","3:RGB","4:RGBA");
-				self.outputChannleChosen_.current(1);
-				self.outputChannleChosen_.place(x=120,y=170,anchor=tk.CENTER);
-
-				self.startOutputBtn_ = tk.Button(self.rootFrame_, text="Output",command=lambda:self.startOutput(slide));
-				self.startOutputBtn_.place(x=120,y=210,anchor=tk.CENTER);
-				self.openFileBtn_['state']=tk.NORMAL;
-				self.resetBtn_['state']=tk.NORMAL;
-
-				self.drawLines();
-			else:
-				self.openFileBtn_['state']=tk.NORMAL;
-				return False;
+			self.drawLines();
 		else:
 			self.openFileBtn_['state']=tk.NORMAL;
 			return False;
