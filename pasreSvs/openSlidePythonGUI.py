@@ -119,6 +119,7 @@ class pasareWindowHandle(object):
 	def __init__(self):
 		super(pasareWindowHandle, self).__init__()	
 		self.root_ = tk.Tk();
+		self.root_.resizable(width=False, height=False);
 		self.root_.title("Pasare Aprieo svs file");
 		self.root_.geometry("800x480");
 		l = tk.Label(self.root_, text="This is a software with .svs file input output with images.", font=("Arial",12), width=800, height=1);
