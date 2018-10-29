@@ -1,5 +1,6 @@
 #!/usr/bin/python
-# -*- coding: UTF-8 -*- 
+# -*- coding: UTF-8 -*-
+# Created By Liang Jun Copyright owned
 
 import openslide
 import sys
@@ -31,7 +32,7 @@ else:  #Python 3.x
 
 def initMutiChannelImage(slide,level,resolution,outputFormat):
 	# default muti channel for 3 channels
-	maxSize = 20000;
+	maxSize = 40000;
 	threshold = 5000;
 	channel=4;
 	if (resolution[0] > maxSize) or (resolution[1] > maxSize):  ## image is too big to analyse
@@ -97,7 +98,6 @@ def outputImage(slide,level,resolution,channel,outputFormat,outputFullPathAndNam
 	time0 = time.time();
 	if (pieceSize == 0) or (not isByPiece):
 		pieceSize = 3000;
-	maxSize = 20000;
 
 	pieceDir = initPieceOutputDir(outputFullPathAndName,level,channel,isByPiece,pieceSize);
 	mutiChannelImage = initMutiChannelImage(slide,level,resolution,outputFormat);
@@ -229,6 +229,7 @@ class pasareWindowHandle(object):
 		self.outPutFolderStr_.set("output folder name");
 		self.startAnalyzeBtn_['state']=tk.DISABLED;
 		self.resetBtn_['state']=tk.DISABLED;
+		self.canvas_.delete("all");
 		self.canvaLineArray_ = [];
 
 		if hasattr(self,'thumbnail_'):
@@ -238,6 +239,7 @@ class pasareWindowHandle(object):
 			self.rootFrame_.destroy();
 			delattr(self,'rootFrame_');
 		if hasattr(self,'canvas_'):
+
 			self.canvas_.destroy();
 			delattr(self,'canvas_');
 			
