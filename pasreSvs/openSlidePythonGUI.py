@@ -58,7 +58,7 @@ def initPieceOutputDir(outputFullPathAndName,level,channel,isByPiece,pieceSize):
 	if isByPiece:
 		targetPieceDir = (targetPieceDir+"_lv%d_pieceSize=%d_Channel_%d"%(level,pieceSize,channel));
 		targetPieceDir = targetPieceDir+"\\";
-		if platform.system() == 'Darwin':
+		if platform.system() == 'Darwin' or platform.system() == 'Linux':
 			targetPieceDir = targetPieceDir+"/";
 		if os.path.exists(targetPieceDir):
 			for f in os.listdir(targetPieceDir):
@@ -210,7 +210,7 @@ class pasareWindowHandle(object):
 		channel = int(self.outputChannleChosen_.get()[0]);
 		fileName = os.path.basename(self.openFileNameStr_.get()).split('.')[0];
 		outputName = self.outPutFolderStr_.get()+"\\"+fileName;
-		if platform.system() == 'Darwin':
+		if platform.system() == 'Darwin' or platform.system() == 'Linux':
 			outputName = self.outPutFolderStr_.get()+"/"+fileName;
 		outputFormat = self.outputFormatChosen_.get();
 		pieceSize = int(self.pieceSizeChosen_.get());
