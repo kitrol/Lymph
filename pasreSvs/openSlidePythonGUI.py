@@ -114,6 +114,32 @@ def outputImage(slide,level,resolution,channel,outputFormat,outputFullPathAndNam
 	
 	return (time.time()-time0);
 
+def outputImageByRange(slide,level,resolution,channel,outputFormat,outputFullPathAndName,rangeSize):
+	time0 = time.time();
+	# rangeSize:[startX startY width height]
+	resolution = (rangeSize[2],rangeSize[3]);
+	# if :
+	# 	pass
+	# rows = int(math.ceil(resolution[0]/pieceSize));
+	# columns = int(math.ceil(resolution[1]/pieceSize));
+	# pieceDetailFile(outputDir,resolution[0],resolution[1],pieceSize,rows,columns);
+	# imagePiece = np.zeros([pieceSize,pieceSize,channel],dtype=np.uint8);
+	# for x in range(0,rows):
+	# 	for y in range(0,columns):
+	# 		width = height = pieceSize;
+	# 		if (x+1)*pieceSize>resolution[0]:
+	# 			width = resolution[0]- x*pieceSize;
+	# 		if (y+1)*pieceSize>resolution[1]:
+	# 			height = resolution[1]- y*pieceSize;
+	# 		if channel == 1:
+	# 			imagePiece = sourceImage[x*pieceSize:x*pieceSize+width,y*pieceSize:y*pieceSize+height];
+	# 		else:
+	# 			imagePiece = sourceImage[x*pieceSize:x*pieceSize+width,y*pieceSize:y*pieceSize+height,:];
+	# 		cv.imwrite(outputDir+'_c%d_lv_%d_row_%d_clo_%d%s'%(channel,level,x,y,outputFormat),imagePiece);
+
+	targetImage = slide.read_region((rangeSize[0],rangeSize[1]),level, resolution,channel);
+	cv.imwrite(outputDir+'_lv_%d_w_%d_h_%d%s'%(level,rangeSize[2],rangeSize[3],outputFormat),targetImage);
+	return (time.time()-time0);
 class pasareWindowHandle(object):
 	"""docstring for pasareWindowHandle"""
 	def __init__(self):
@@ -215,7 +241,9 @@ class pasareWindowHandle(object):
 		outputFormat = self.outputFormatChosen_.get();
 		pieceSize = int(self.pieceSizeChosen_.get());
 		self.warningBox('PLEASE WAIT UNTILL SUCCESS MESSAGE');
-		timeCost = outputImage(slide,level,resol,channel,outputFormat,outputName,isByPiece=True,pieceSize=pieceSize);#self.isByPiece_
+		# timeCost = outputImage(slide,level,resol,channel,outputFormat,outputName,isByPiece=True,pieceSize=pieceSize);#self.isByPiece_
+		rangeSize = (12000,20000,70000,32000);
+		timeCost = outputImageByRange(slide,level,resol,channel,outputFormat,outputName,rangeSize);
 		self.warningBox('PROCESS SUCCESS!!!\nUSING TIME %d SECONDS '%(timeCost));
 
 		self.outPutDirBtn_['state']=tk.NORMAL;
