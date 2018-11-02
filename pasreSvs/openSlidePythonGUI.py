@@ -93,52 +93,58 @@ def pieceDetailFile(outputDir,width,height,pieceSize,rows,columns):
 	string = 'width:%d\nheight:%d\npieceSize:%s\rrows:%d\ncolumns:%d'%(width,height,str(pieceSize),rows,columns);
 	file.write(string);
 	file.close();
-			
-def outputImage(slide,level,resolution,channel,outputFormat,outputFullPathAndName,isByPiece=False,pieceSize=0):##needWriteToDisk=True
+def readImageByPiece():
+	pass;			
+def outputImage(slide,level,rangeRect,channel,outputFormat,outputFullPathAndName,isByPiece=False,pieceSize=0,index=1): ##needWriteToDisk=True
 	time0 = time.time();
 	if (pieceSize == 0) or (not isByPiece):
 		pieceSize = 3000;
+	threshold_1 = 40000;
+	threshold_2 = 70000;
+	channel=4;
+	maxSize = resolution[0];
+	if maxSize < resolution[1]:
+		maxSize = resolution[1];
 
-	pieceDir = initPieceOutputDir(outputFullPathAndName,level,channel,isByPiece,pieceSize);
-	mutiChannelImage = initMutiChannelImage(slide,level,resolution,outputFormat);
-	targetImage = mutiChannelImage;
-	if channel == 1:
-		singleChannelImage = cv.cvtColor(mutiChannelImage, cv.COLOR_BGR2GRAY);
-		targetImage = singleChannelImage;
-	elif channel == 3:
-		targetImage = mutiChannelImage[:,:,:3];
+	if (maxSize > threshold_1):  ## image is too big to analyse
+		# output Piece Image and thumbnil
+		thumbnailSize = slide.level_dimensions[len(slide.level_dimensions)-1];
+		print(thumbnailSize);
+		outputThumbnail = slide.read_region((0,0),level, thumbnailSize,channel);
+		cv.imwrite(outputFullPathAndName+'_lv_%d_w_%d_h_%d_id_%d%s'%(level,rangeRect[2],rangeRect[3],index,outputFormat),outputThumbnail);
+	else:
+		# output Whole Image
+		targetImage = slide.read_region((rangeRect[0],rangeRect[1]),level, (rangeRect[2],rangeRect[3]),channel);
+	
+
+	# mutiChannelImage = initMutiChannelImage(slide,level,resolution,outputFormat);
+	# targetImage = mutiChannelImage;
+	# if channel == 1:
+	# 	singleChannelImage = cv.cvtColor(mutiChannelImage, cv.COLOR_BGR2GRAY);
+	# 	targetImage = singleChannelImage;
+	# elif channel == 3:
+	# 	targetImage = mutiChannelImage[:,:,:3];
 		
-	cv.imwrite(outputFullPathAndName+'_c%d_lv_%d%s'%(channel,level,outputFormat),targetImage);
-	if isByPiece:
-		outputImageByPiece(targetImage,pieceSize,channel,level,outputFormat,pieceDir);
+	# cv.imwrite(outputFullPathAndName+'_c%d_lv_%d%s'%(channel,level,outputFormat),targetImage);
+	# if isByPiece:
+	# 	pieceDir = initPieceOutputDir(outputFullPathAndName,level,channel,isByPiece,pieceSize);
+	# 	outputImageByPiece(targetImage,pieceSize,channel,level,outputFormat,pieceDir);
 	
 	return (time.time()-time0);
 
-def outputImageByRange(slide,level,resolution,channel,outputFormat,outputFullPathAndName,rangeSize):
+def outputImageByRange(slide,level,resolution,channel,outputFormat,outputFullPathAndName,rangeRect,index=1):
 	time0 = time.time();
-	# rangeSize:[startX startY width height]
-	resolution = (rangeSize[2],rangeSize[3]);
-	# if :
-	# 	pass
-	# rows = int(math.ceil(resolution[0]/pieceSize));
-	# columns = int(math.ceil(resolution[1]/pieceSize));
-	# pieceDetailFile(outputDir,resolution[0],resolution[1],pieceSize,rows,columns);
-	# imagePiece = np.zeros([pieceSize,pieceSize,channel],dtype=np.uint8);
-	# for x in range(0,rows):
-	# 	for y in range(0,columns):
-	# 		width = height = pieceSize;
-	# 		if (x+1)*pieceSize>resolution[0]:
-	# 			width = resolution[0]- x*pieceSize;
-	# 		if (y+1)*pieceSize>resolution[1]:
-	# 			height = resolution[1]- y*pieceSize;
-	# 		if channel == 1:
-	# 			imagePiece = sourceImage[x*pieceSize:x*pieceSize+width,y*pieceSize:y*pieceSize+height];
-	# 		else:
-	# 			imagePiece = sourceImage[x*pieceSize:x*pieceSize+width,y*pieceSize:y*pieceSize+height,:];
-	# 		cv.imwrite(outputDir+'_c%d_lv_%d_row_%d_clo_%d%s'%(channel,level,x,y,outputFormat),imagePiece);
+	if (maxSize > threshold_1):  ## image is too big to analyse
+		# output Piece Image and thumbnil
 
-	targetImage = slide.read_region((rangeSize[0],rangeSize[1]),level, resolution,channel);
-	cv.imwrite(outputDir+'_lv_%d_w_%d_h_%d%s'%(level,rangeSize[2],rangeSize[3],outputFormat),targetImage);
+		pass;
+	else:
+		# output Whole Image
+		targetImage = slide.read_region((0,0),level, resolution,channel);
+	# rangeRect:[startX startY width height]
+	resolution = (rangeRect[2],rangeRect[3]);
+	targetImage = slide.read_region((rangeRect[0],rangeRect[1]),level, resolution,channel);
+	cv.imwrite(outputFullPathAndName+'_lv_%d_w_%d_h_%d%s'%(level,rangeRect[2],rangeRect[3],outputFormat),targetImage);
 	return (time.time()-time0);
 class pasareWindowHandle(object):
 	"""docstring for pasareWindowHandle"""
@@ -175,6 +181,14 @@ class pasareWindowHandle(object):
 		self.canvaLineArray_ = [];
 		self.thumbnailSize_ = None;
 
+		self.IsOnAddMode_ = False;
+		self.IsEditable_ = False;
+		self.activeRect_ = None;
+		self.selectedRegions_ = [];
+		self.selectedRects_ = [];
+		self.canvaLineGroup_ = [];
+
+
 		self.root_.mainloop();
 	def selectInputFile(self):
 		filename = filedialog.askopenfilename();
@@ -195,8 +209,71 @@ class pasareWindowHandle(object):
 	def onSizeChange(self,eventObject):
 		self.drawLines();
 
+	def onRangeItemSelected(self,eventObject):
+		print("onRangeItemSelected "+self.rangeChosen_.get());
+
 	def onIsByPieceCheck(self):
 		self.isByPiece_ = not self.isByPiece_;
+
+	def onAddNewRegion(self):
+		print("onAddNewRegion");
+		self.IsOnAddMode_ = not self.IsOnAddMode_;
+		if self.addNewRegionBtn_['text'] == "Add":
+			self.addNewRegionBtn_['text']="cancle";
+		else:
+			self.addNewRegionBtn_['text']="Add";
+
+	def onDeleteRegion(self):
+		targetIndex = -1;
+		for i, val in enumerate(self.selectedRegions_):
+			if val == self.rangeChosen_.get():
+				targetIndex = i;
+		if targetIndex >= 0:
+			targetRect = self.selectedRects_[targetIndex];
+			self.canvas_.delete(targetRect);
+			self.selectedRects_.remove(targetRect);
+			del self.selectedRegions_[targetIndex];
+			self.rangeChosen_['values'] = self.selectedRegions_;
+			if len(self.selectedRegions_)>0:
+				self.rangeChosen_.current(len(self.selectedRegions_)-1);
+			else:
+				self.newRegion_="";
+
+	def onClickInThumbnil(self,event):
+		if not self.IsOnAddMode_:
+			return;
+		self.activeRect_ = self.canvas_.create_rectangle(event.x,event.y,event.x+1,event.y+1,outline='green',width = 1);
+
+	def onchangeRegion(self,event):
+		if not self.IsOnAddMode_:
+			return;
+		startx,starty,endx,endy = self.canvas_.coords(self.activeRect_);
+		self.canvasWidth_ = 300.0;
+		self.canvasHeight_
+		endX = event.x;
+		endY = event.y;
+		if endX>self.canvasWidth_:
+			endX = self.canvasWidth_
+		if endY>self.canvasHeight_:
+			endY = self.canvasHeight_
+		self.canvas_.coords(self.activeRect_,(startx, starty, endX, endY));
+
+	def onClickFinished(self,event):
+		if not self.IsOnAddMode_:
+			return;
+		startx,starty,endx,endy = self.canvas_.coords(self.activeRect_);
+		regionItem = (startx,starty,endx,endy);
+		self.selectedRects_.append(self.activeRect_);
+		self.selectedRegions_.append(str(regionItem));
+		self.rangeChosen_['values'] = self.selectedRegions_;
+		self.rangeChosen_.current(len(self.selectedRegions_)-1);
+		self.activeRect_ = None;
+		self.redoBtn_['state']=tk.ACTIVE;
+		self.addNewRegionBtn_['text']="Add";
+		self.IsOnAddMode_ = False;
+
+	def onChangeOutputType(self,eventObject):
+		print("onChangeOutputType   ");
 
 	def warningBox(self,messageInfo):
 		messagebox.showwarning(title='WARNING', 
@@ -242,7 +319,9 @@ class pasareWindowHandle(object):
 		pieceSize = int(self.pieceSizeChosen_.get());
 		self.warningBox('PLEASE WAIT UNTILL SUCCESS MESSAGE');
 		# timeCost = outputImage(slide,level,resol,channel,outputFormat,outputName,isByPiece=True,pieceSize=pieceSize);#self.isByPiece_
-		rangeSize = (12000,20000,70000,32000);
+		rangeSize = (12000,20000,20000,10000);
+		timeCost = outputImageByRange(slide,level,resol,channel,outputFormat,outputName,rangeSize);
+		rangeSize = (20000,40000,20001,10001);
 		timeCost = outputImageByRange(slide,level,resol,channel,outputFormat,outputName,rangeSize);
 		self.warningBox('PROCESS SUCCESS!!!\nUSING TIME %d SECONDS '%(timeCost));
 
@@ -298,9 +377,9 @@ class pasareWindowHandle(object):
 			slide = openslide.OpenSlide(fileName);
 			
 			bestResolution = slide.level_dimensions[0];
-			maxWidth = 300.0;
-			height = math.floor((maxWidth/bestResolution[0])*bestResolution[1]);
-			size = self.thumbnailSize_ = (maxWidth,height);
+			self.canvasWidth_ = 300.0;
+			self.canvasHeight_ = math.floor((self.canvasWidth_/bestResolution[0])*bestResolution[1]);
+			size = self.thumbnailSize_ = (self.canvasWidth_,self.canvasHeight_);
 
 			slide_thumbnail = slide.get_thumbnail(size);
 			from PIL import Image, ImageTk
@@ -320,11 +399,14 @@ class pasareWindowHandle(object):
 
 
 			from PIL import Image, ImageTk
-			self.canvas_ = Canvas(self.root_, width=maxWidth,height=height);
+			self.canvas_ = Canvas(self.root_, width=self.canvasWidth_,height=self.canvasHeight_);
 			self.canvas_.place(x=470,y=230);
-			self.canvas_.create_image(maxWidth/2,height/2,anchor=tk.CENTER,image=self.render_);
-			# self.canvas.create_line(0,100,200,100,fill='red');
+			self.canvas_.create_image(self.canvasWidth_/2,self.canvasHeight_/2,anchor=tk.CENTER,image=self.render_);
+			self.canvas_.bind("<Button-1>", self.onClickInThumbnil);
+			self.canvas_.bind("<B1-Motion>", self.onchangeRegion);
+			self.canvas_.bind("<ButtonRelease-1>", self.onClickFinished);
 			
+			# self.canvas.create_line(0,100,200,100,fill='red');
         
 			choseResolutionLabel = tk.Label(self.rootFrame_, text="Choose the output Resolution", font=("Arial",12), width=25, height=1);
 			choseResolutionLabel.place(x=120,y=20,anchor=tk.CENTER);
@@ -336,18 +418,61 @@ class pasareWindowHandle(object):
 			self.resolutionChosen_.place(x=120,y=50,anchor=tk.CENTER);
 			self.resolutionChosen_.bind("<<ComboboxSelected>>",self.onSizeChange);
 
-			self.isByPieceCheck_ = Checkbutton(self.rootFrame_,text ='output Piece?',command = lambda:self.onIsByPieceCheck());
-			self.isByPieceCheck_.place(x=350,y=20,anchor=tk.CENTER);
+			# print(slide.level_dimensions[0]);
+			threshold_1 = 40000;
+			
+			self.typeCanvas_ = Canvas(self.root_, width=200,height=150);#,bg="black"
+			self.typeCanvas_.place(x=270,y=265,anchor=tk.NW);
 
-			pieceSizeLabel = tk.Label(self.rootFrame_, text="Choose piece size", font=("Arial",12), width=25, height=1);
-			pieceSizeLabel.place(x=350,y=50,anchor=tk.CENTER);
+			outputTypeLabel = tk.Label(self.rootFrame_, text="Choose output type", font=("Arial",12), width=25, height=1);
+			outputTypeLabel.place(x=350,y=20,anchor=tk.CENTER);
+			self.outputType_ = tk.StringVar();
+			self.outputType_ = ttk.Combobox(self.rootFrame_, width=20, textvariable=self.outputType_, state="readonly");
+			self.outputType_["values"] = ("By Piece","By Range");
+			self.outputType_.current(0);
+			if (slide.level_dimensions[0][0]>threshold_1) or (slide.level_dimensions[0][1]>threshold_1):
+				self.outputType_.current(1);
 
-			self.pieceSize_ = tk.StringVar().set("500");
-			self.pieceSizeChosen_ = ttk.Combobox(self.rootFrame_, width=20, textvariable=self.pieceSize_, state="readonly");
-			self.pieceSizeChosen_["values"] = ("100","200","300","400","500","600","700","800","900","1000","3000","10000");
-			self.pieceSizeChosen_.current(11);
-			self.pieceSizeChosen_.place(x=350,y=80,anchor=tk.CENTER);
-			self.pieceSizeChosen_.bind("<<ComboboxSelected>>",self.onSizeChange);
+				self.addNewRegionBtn_ = tk.Button(self.typeCanvas_, text="Add",width=5, command=lambda:self.onAddNewRegion());
+				self.addNewRegionBtn_.place(x=40,y=20,anchor=tk.CENTER);
+				self.redoBtn_ = tk.Button(self.typeCanvas_, text="Delete", command=lambda:self.onDeleteRegion());
+				self.redoBtn_.place(x=90,y=20,anchor=tk.CENTER);
+				# self.addNewRegionBtn_['state']=tk.DISABLED;
+				self.redoBtn_['state']=tk.DISABLED;# active, disabled, or normal
+
+				self.newRegion_ = tk.StringVar();
+				self.rangeChosen_ = ttk.Combobox(self.typeCanvas_, width=20, textvariable=self.newRegion_, state="readonly");
+				self.rangeChosen_["values"] = self.selectedRegions_;
+				self.rangeChosen_.place(x=100,y=50,anchor=tk.CENTER);
+				self.rangeChosen_.bind("<<ComboboxSelected>>",self.onRangeItemSelected);
+
+				pieceSizeLabel = tk.Label(self.typeCanvas_, text="Choose piece size", font=("Arial",12), width=25, height=1);
+				pieceSizeLabel.place(x=100,y=75,anchor=tk.CENTER);
+				self.pieceSize_ = tk.StringVar();
+				self.pieceSizeChosen_ = ttk.Combobox(self.typeCanvas_, width=20, textvariable=self.pieceSize_, state="readonly");
+				self.pieceSizeChosen_["values"] = ("1000","3000","5000","10000");
+				self.pieceSizeChosen_.current(3);
+				self.pieceSizeChosen_.place(x=100,y=100,anchor=tk.CENTER);
+				self.pieceSizeChosen_.bind("<<ComboboxSelected>>",self.onSizeChange);
+			else:	
+				pieceSizeLabel = tk.Label(self.typeCanvas_, text="Choose piece size", font=("Arial",12), width=25, height=1);
+				pieceSizeLabel.place(x=100,y=20,anchor=tk.CENTER);
+
+				self.pieceSize_ = tk.StringVar();
+				self.pieceSizeChosen_ = ttk.Combobox(self.typeCanvas_, width=20, textvariable=self.pieceSize_, state="readonly");
+				self.pieceSizeChosen_["values"] = ("1000","3000","5000","10000");
+				self.pieceSizeChosen_.current(3);
+				self.pieceSizeChosen_.place(x=100,y=50,anchor=tk.CENTER);
+				self.pieceSizeChosen_.bind("<<ComboboxSelected>>",self.onSizeChange);
+			self.outputType_.place(x=350,y=50,anchor=tk.CENTER);
+			self.outputType_.bind("<<ComboboxSelected>>",self.onChangeOutputType);
+
+
+
+			# self.isByPieceCheck_ = Checkbutton(self.rootFrame_,text ='output Piece?',command = lambda:self.onIsByPieceCheck());
+			# self.isByPieceCheck_.place(x=350,y=20,anchor=tk.CENTER);
+
+
 
 			choseFormatLabel = tk.Label(self.rootFrame_, text="Choose the output Fromat", font=("Arial",12), width=25, height=1);
 			choseFormatLabel.place(x=120,y=80,anchor=tk.CENTER);
@@ -370,7 +495,7 @@ class pasareWindowHandle(object):
 			self.openFileBtn_['state']=tk.NORMAL;
 			self.resetBtn_['state']=tk.NORMAL;
 
-			self.drawLines();
+			# self.drawLines();
 		else:
 			self.openFileBtn_['state']=tk.NORMAL;
 			return False;
