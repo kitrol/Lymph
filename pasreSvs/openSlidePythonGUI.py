@@ -30,6 +30,13 @@ else:  #Python 3.x
 	import tkinter.filedialog as filedialog
 	import tkinter.messagebox as messagebox
 
+def outputModeClassifier(outputSize):
+	threshold = 70000;
+	if (outputSize[0] > threshold) or (outputSize[1] > threshold):
+		return "RangeMode";
+	else:
+		return "PieceMode";
+
 def initMutiChannelImage(slide,level,resolution,outputFormat):
 	# default muti channel for 3 channels
 	maxSize = 40000;
@@ -106,13 +113,13 @@ def outputImage(slide,level,rangeRect,channel,outputFormat,outputFullPathAndName
 	if maxSize < resolution[1]:
 		maxSize = resolution[1];
 
-	if (maxSize > threshold_1):  ## image is too big to analyse
+	if outputModeClassifier(resolution) =="RangeMode":  ## output the range selected by user only
 		# output Piece Image and thumbnil
 		thumbnailSize = slide.level_dimensions[len(slide.level_dimensions)-1];
 		print(thumbnailSize);
 		outputThumbnail = slide.read_region((0,0),level, thumbnailSize,channel);
 		cv.imwrite(outputFullPathAndName+'_lv_%d_w_%d_h_%d_id_%d%s'%(level,rangeRect[2],rangeRect[3],index,outputFormat),outputThumbnail);
-	else:
+	else: ##output the whole Image
 		# output Whole Image
 		targetImage = slide.read_region((rangeRect[0],rangeRect[1]),level, (rangeRect[2],rangeRect[3]),channel);
 	
@@ -181,13 +188,15 @@ class pasareWindowHandle(object):
 		self.canvaLineArray_ = [];
 		self.thumbnailSize_ = None;
 
+		self.selectRegionMode_ = False;
 		self.IsOnAddMode_ = False;
 		self.IsEditable_ = False;
 		self.activeRect_ = None;
-		self.selectedRegions_ = [];
-		self.selectedRects_ = [];
-		self.canvaLineGroup_ = [];
-
+		self.selectedRegions_ = []; #the (startx,starty,endx,endy)'s set saved the rect des inside
+		self.selectedRects_ = []; #the id set for those rects drawed on the canvas
+		self.canvaLineGroup_ = {}; # for each selected rect on the thumbnil, saves the lines' id which are drawed inside the rect
+		# del self.canvaLineGroup_['Name']; 
+		# self.canvaLineGroup_.clear();
 
 		self.root_.mainloop();
 	def selectInputFile(self):
@@ -207,7 +216,14 @@ class pasareWindowHandle(object):
 			self.outPutFolderStr_.set(os.path.abspath(os.curdir));
 
 	def onSizeChange(self,eventObject):
-		self.drawLines();
+		if self.selectRegionMode_:
+			if len(self.selectedRegions_)>0:
+				for regionRect in self.selectedRegions_:
+					temp = tuple(eval(regionRect));
+					self.drawLinesInRegion(temp);
+		else:
+			self.clearLinesAndRects();
+			self.drawLinesInRegion();
 
 	def onRangeItemSelected(self,eventObject):
 		print("onRangeItemSelected "+self.rangeChosen_.get());
@@ -216,12 +232,11 @@ class pasareWindowHandle(object):
 		self.isByPiece_ = not self.isByPiece_;
 
 	def onAddNewRegion(self):
-		print("onAddNewRegion");
 		self.IsOnAddMode_ = not self.IsOnAddMode_;
-		if self.addNewRegionBtn_['text'] == "Add":
+		if self.addNewRegionBtn_['text'] == "Add Region":
 			self.addNewRegionBtn_['text']="cancle";
 		else:
-			self.addNewRegionBtn_['text']="Add";
+			self.addNewRegionBtn_['text']="Add Region";
 
 	def onDeleteRegion(self):
 		targetIndex = -1;
@@ -229,22 +244,29 @@ class pasareWindowHandle(object):
 			if val == self.rangeChosen_.get():
 				targetIndex = i;
 		if targetIndex >= 0:
-			targetRect = self.selectedRects_[targetIndex];
-			self.canvas_.delete(targetRect);
-			self.selectedRects_.remove(targetRect);
+			targetRectId = self.selectedRects_[targetIndex];
+			self.canvas_.delete(targetRectId);
+			regionRect = self.selectedRegions_[targetIndex];
+			linesArray = self.canvaLineGroup_[str(regionRect)];
+			if linesArray != None and len(linesArray) > 0:
+				for lineId in linesArray:
+					self.canvas_.delete(lineId);
+			del self.canvaLineGroup_[str(regionRect)];
+			del self.selectedRects_[targetIndex];
 			del self.selectedRegions_[targetIndex];
 			self.rangeChosen_['values'] = self.selectedRegions_;
 			if len(self.selectedRegions_)>0:
 				self.rangeChosen_.current(len(self.selectedRegions_)-1);
 			else:
 				self.newRegion_="";
+				self.redoBtn_['state'] = tk.DISABLED
 
 	def onClickInThumbnil(self,event):
 		if not self.IsOnAddMode_:
 			return;
 		self.activeRect_ = self.canvas_.create_rectangle(event.x,event.y,event.x+1,event.y+1,outline='green',width = 1);
 
-	def onchangeRegion(self,event):
+	def onChangeRegion(self,event):
 		if not self.IsOnAddMode_:
 			return;
 		startx,starty,endx,endy = self.canvas_.coords(self.activeRect_);
@@ -265,15 +287,59 @@ class pasareWindowHandle(object):
 		regionItem = (startx,starty,endx,endy);
 		self.selectedRects_.append(self.activeRect_);
 		self.selectedRegions_.append(str(regionItem));
+		self.canvaLineGroup_[str(regionItem)] = [];
 		self.rangeChosen_['values'] = self.selectedRegions_;
 		self.rangeChosen_.current(len(self.selectedRegions_)-1);
 		self.activeRect_ = None;
 		self.redoBtn_['state']=tk.ACTIVE;
-		self.addNewRegionBtn_['text']="Add";
+		self.addNewRegionBtn_['text']="Add Region";
 		self.IsOnAddMode_ = False;
+		self.drawLinesInRegion(regionItem);
+		if len(self.selectedRegions_)>0:
+			self.startOutputBtn_['state']=tk.NORMAL;
+		else:
+			self.startOutputBtn_['state']=tk.DISABLED;
+		
+	def clearLinesAndRects(self):
+		for regionRect,linesArray in self.canvaLineGroup_.items():
+			if linesArray != None and len(linesArray) > 0:
+				for lineId in linesArray:
+					self.canvas_.delete(lineId);		
+		for rectId in self.selectedRects_:
+			self.canvas_.delete(rectId);
+		self.selectedRegions_.clear();
+		self.selectedRects_.clear();
+		self.canvaLineGroup_.clear();		
+
 
 	def onChangeOutputType(self,eventObject):
-		print("onChangeOutputType   ");
+		if self.selectRegionMode_:
+			if self.outputType_.get() == "By Range":
+				return ;
+			else:
+				self.selectRegionMode_ = False;
+				self.IsOnAddMode_ = False;
+				self.addNewRegionBtn_['text']="Add Region"
+				# hide add 'new region' btn and 'delete' btn
+				# clear the rects and lines drawed on the Canvas
+				self.addNewRegionBtn_['state']=tk.DISABLED;
+				self.redoBtn_['state']=tk.DISABLED;
+				self.rangeChosen_['state']=tk.DISABLED;
+
+				self.clearLinesAndRects();
+				self.newRegion_="";  # UI clear
+				self.rangeChosen_['values'] = self.selectedRegions_; # UI clear
+				self.drawLinesInRegion();
+		else:
+			if self.outputType_.get() == "By Piece":
+				return;
+			else:
+				self.selectRegionMode_ = True;
+				# reshow add 'new region' btn and 'delete' btn
+				self.addNewRegionBtn_['state']=tk.NORMAL;
+				self.redoBtn_['state']=tk.NORMAL;
+				self.rangeChosen_['state']=tk.NORMAL;
+				self.clearLinesAndRects();
 
 	def warningBox(self,messageInfo):
 		messagebox.showwarning(title='WARNING', 
@@ -337,8 +403,16 @@ class pasareWindowHandle(object):
 		self.outPutFolderStr_.set("output folder name");
 		self.startAnalyzeBtn_['state']=tk.DISABLED;
 		self.resetBtn_['state']=tk.DISABLED;
+		self.IsOnAddMode_ = False;
+		self.IsEditable_ = False;
+		self.activeRect_ = None;
+		self.selectedRegions_.clear();
+		self.selectedRects_.clear();
+		self.canvaLineGroup_.clear();
+
 		self.canvas_.delete("all");
 		self.canvaLineArray_ = [];
+		# self.typeCanvas_.delete("all");
 
 		if hasattr(self,'thumbnail_'):
 			self.thumbnail_.destroy();
@@ -347,9 +421,11 @@ class pasareWindowHandle(object):
 			self.rootFrame_.destroy();
 			delattr(self,'rootFrame_');
 		if hasattr(self,'canvas_'):
-
 			self.canvas_.destroy();
 			delattr(self,'canvas_');
+		if hasattr(self,'typeCanvas_'):
+			self.typeCanvas_.destroy();
+			delattr(self,'typeCanvas_');
 			
 	def drawLines(self):
 		outputSize = self.resolutionChosen_.get().split(" ");
@@ -357,6 +433,7 @@ class pasareWindowHandle(object):
 		rows = int(math.floor(int(outputSize[0])/pieceSize));
 		columns = int(math.floor(int(outputSize[1])/pieceSize));
 		offset = self.thumbnailSize_[0]/int(outputSize[0])*pieceSize;
+
 		for itemId in self.canvaLineArray_:
 			self.canvas_.delete(itemId);
 		for x in range(rows):
@@ -365,6 +442,29 @@ class pasareWindowHandle(object):
 		for y in range(columns):
 			lineId = self.canvas_.create_line(0,(y+1)*offset,self.thumbnailSize_[0],(y+1)*offset,fill='blue');
 			self.canvaLineArray_.append(lineId);
+
+	def drawLinesInRegion(self,targetRect=-1):
+		if targetRect==-1:
+			res = self.resolutionChosen_.get().split(" ");
+			targetRect = [0,0,int(res[0]),int(res[1])];
+		outputSize = self.resolutionChosen_.get().split(" ");
+		pieceSize = int(self.pieceSizeChosen_.get());
+		offset = self.thumbnailSize_[0]/int(outputSize[0])*pieceSize;
+
+		columns = int(math.floor(int(targetRect[2]-targetRect[0])/offset));
+		rows = int(math.floor(int(targetRect[3]-targetRect[1])/offset));
+		if hasattr(self.canvaLineGroup_,str(targetRect)) and len(self.canvaLineGroup_[str(targetRect)]) > 0:
+			for itemId in self.canvaLineGroup_[str(targetRect)]:
+				self.canvas_.delete(itemId);
+		else:
+			self.canvaLineGroup_[str(targetRect)] = [];
+
+		for x in range(columns):
+			lineId = self.canvas_.create_line(targetRect[0]+(x+1)*offset,targetRect[1],targetRect[0]+(x+1)*offset,targetRect[3],fill='red');
+			self.canvaLineGroup_[str(targetRect)].append(lineId);
+		for y in range(rows):
+			lineId = self.canvas_.create_line(targetRect[0],targetRect[1]+(y+1)*offset,targetRect[2],targetRect[1]+(y+1)*offset,fill='blue');
+			self.canvaLineGroup_[str(targetRect)].append(lineId);
 
 	def startAnalyze(self):
 		self.openFileBtn_['state']=tk.DISABLED;
@@ -403,7 +503,7 @@ class pasareWindowHandle(object):
 			self.canvas_.place(x=470,y=230);
 			self.canvas_.create_image(self.canvasWidth_/2,self.canvasHeight_/2,anchor=tk.CENTER,image=self.render_);
 			self.canvas_.bind("<Button-1>", self.onClickInThumbnil);
-			self.canvas_.bind("<B1-Motion>", self.onchangeRegion);
+			self.canvas_.bind("<B1-Motion>", self.onChangeRegion);
 			self.canvas_.bind("<ButtonRelease-1>", self.onClickFinished);
 			
 			# self.canvas.create_line(0,100,200,100,fill='red');
@@ -414,65 +514,62 @@ class pasareWindowHandle(object):
 			self.resolutions_ = tk.StringVar().set(slide.level_dimensions[0]);
 			self.resolutionChosen_ = ttk.Combobox(self.rootFrame_, width=20, textvariable=self.resolutions_, state="readonly");#,command= lambda:self.onSizeChange()
 			self.resolutionChosen_["values"] = slide.level_dimensions;
+			# DEFAULT OUOUT RESOLUTION IS THE BEST RESOLUTION
 			self.resolutionChosen_.current(0);
 			self.resolutionChosen_.place(x=120,y=50,anchor=tk.CENTER);
 			self.resolutionChosen_.bind("<<ComboboxSelected>>",self.onSizeChange);
-
-			# print(slide.level_dimensions[0]);
-			threshold_1 = 40000;
 			
-			self.typeCanvas_ = Canvas(self.root_, width=200,height=150);#,bg="black"
-			self.typeCanvas_.place(x=270,y=265,anchor=tk.NW);
+			# self.typeCanvas_ = Canvas(self.root_, width=200,height=150,bg="blue");#
+			# self.typeCanvas_.place(x=270,y=265,anchor=tk.NW);
 
 			outputTypeLabel = tk.Label(self.rootFrame_, text="Choose output type", font=("Arial",12), width=25, height=1);
 			outputTypeLabel.place(x=350,y=20,anchor=tk.CENTER);
 			self.outputType_ = tk.StringVar();
 			self.outputType_ = ttk.Combobox(self.rootFrame_, width=20, textvariable=self.outputType_, state="readonly");
 			self.outputType_["values"] = ("By Piece","By Range");
-			self.outputType_.current(0);
-			if (slide.level_dimensions[0][0]>threshold_1) or (slide.level_dimensions[0][1]>threshold_1):
+			# def outputModeClassifier(outputSize):
+			# 	threshold = 70000;
+			# 	if (outputSize[0] > threshold) or (outputSize[1] > threshold):
+			# 		return "RangeMode";
+			# 	else:
+			# 		return "PieceMode";
+			defaultResl = slide.level_dimensions[0];
+			if outputModeClassifier(defaultResl) == "RangeMode":
+				self.selectRegionMode_ = True;
 				self.outputType_.current(1);
 
-				self.addNewRegionBtn_ = tk.Button(self.typeCanvas_, text="Add",width=5, command=lambda:self.onAddNewRegion());
-				self.addNewRegionBtn_.place(x=40,y=20,anchor=tk.CENTER);
-				self.redoBtn_ = tk.Button(self.typeCanvas_, text="Delete", command=lambda:self.onDeleteRegion());
-				self.redoBtn_.place(x=90,y=20,anchor=tk.CENTER);
+				self.addNewRegionBtn_ = tk.Button(self.rootFrame_, text="Add Region",width=10, command=lambda:self.onAddNewRegion());
+				self.addNewRegionBtn_.place(x=310,y=140,anchor=tk.CENTER);
+				self.redoBtn_ = tk.Button(self.rootFrame_, text="Delete", command=lambda:self.onDeleteRegion());
+				self.redoBtn_.place(x=400,y=140,anchor=tk.CENTER);
 				# self.addNewRegionBtn_['state']=tk.DISABLED;
 				self.redoBtn_['state']=tk.DISABLED;# active, disabled, or normal
 
 				self.newRegion_ = tk.StringVar();
-				self.rangeChosen_ = ttk.Combobox(self.typeCanvas_, width=20, textvariable=self.newRegion_, state="readonly");
+				self.rangeChosen_ = ttk.Combobox(self.rootFrame_, width=20, textvariable=self.newRegion_, state="readonly");
 				self.rangeChosen_["values"] = self.selectedRegions_;
-				self.rangeChosen_.place(x=100,y=50,anchor=tk.CENTER);
+				self.rangeChosen_.place(x=350,y=170,anchor=tk.CENTER);
 				self.rangeChosen_.bind("<<ComboboxSelected>>",self.onRangeItemSelected);
 
-				pieceSizeLabel = tk.Label(self.typeCanvas_, text="Choose piece size", font=("Arial",12), width=25, height=1);
-				pieceSizeLabel.place(x=100,y=75,anchor=tk.CENTER);
-				self.pieceSize_ = tk.StringVar();
-				self.pieceSizeChosen_ = ttk.Combobox(self.typeCanvas_, width=20, textvariable=self.pieceSize_, state="readonly");
-				self.pieceSizeChosen_["values"] = ("1000","3000","5000","10000");
-				self.pieceSizeChosen_.current(3);
-				self.pieceSizeChosen_.place(x=100,y=100,anchor=tk.CENTER);
-				self.pieceSizeChosen_.bind("<<ComboboxSelected>>",self.onSizeChange);
-			else:	
-				pieceSizeLabel = tk.Label(self.typeCanvas_, text="Choose piece size", font=("Arial",12), width=25, height=1);
-				pieceSizeLabel.place(x=100,y=20,anchor=tk.CENTER);
+			else:
+				self.outputType_.current(0);
+				self.selectRegionMode_ = False;
 
-				self.pieceSize_ = tk.StringVar();
-				self.pieceSizeChosen_ = ttk.Combobox(self.typeCanvas_, width=20, textvariable=self.pieceSize_, state="readonly");
-				self.pieceSizeChosen_["values"] = ("1000","3000","5000","10000");
-				self.pieceSizeChosen_.current(3);
-				self.pieceSizeChosen_.place(x=100,y=50,anchor=tk.CENTER);
-				self.pieceSizeChosen_.bind("<<ComboboxSelected>>",self.onSizeChange);
 			self.outputType_.place(x=350,y=50,anchor=tk.CENTER);
 			self.outputType_.bind("<<ComboboxSelected>>",self.onChangeOutputType);
 
+			pieceSizeLabel = tk.Label(self.rootFrame_, text="Choose piece size", font=("Arial",12), width=25, height=1);
+			pieceSizeLabel.place(x=350,y=80,anchor=tk.CENTER);
+			self.pieceSize_ = tk.StringVar();
+			self.pieceSizeChosen_ = ttk.Combobox(self.rootFrame_, width=20, textvariable=self.pieceSize_, state="readonly");
+			self.pieceSizeChosen_["values"] = ("1000","3000","5000","10000");
+			self.pieceSizeChosen_.current(3);
+			self.pieceSizeChosen_.place(x=350,y=110,anchor=tk.CENTER);
+			self.pieceSizeChosen_.bind("<<ComboboxSelected>>",self.onSizeChange);
 
 
 			# self.isByPieceCheck_ = Checkbutton(self.rootFrame_,text ='output Piece?',command = lambda:self.onIsByPieceCheck());
 			# self.isByPieceCheck_.place(x=350,y=20,anchor=tk.CENTER);
-
-
 
 			choseFormatLabel = tk.Label(self.rootFrame_, text="Choose the output Fromat", font=("Arial",12), width=25, height=1);
 			choseFormatLabel.place(x=120,y=80,anchor=tk.CENTER);
@@ -491,12 +588,14 @@ class pasareWindowHandle(object):
 			self.outputChannleChosen_.place(x=120,y=170,anchor=tk.CENTER);
 
 			self.startOutputBtn_ = tk.Button(self.rootFrame_, text="Output",command=lambda:self.startOutput(slide));
-			self.startOutputBtn_.place(x=120,y=210,anchor=tk.CENTER);
+			self.startOutputBtn_.place(x=235,y=220,anchor=tk.CENTER);
 			self.openFileBtn_['state']=tk.NORMAL;
 			self.resetBtn_['state']=tk.NORMAL;
-
+			if self.selectRegionMode_:
+				self.startOutputBtn_['state']=tk.DISABLED;
 			# self.drawLines();
 		else:
+			self.warningBox('File is not a tiff file nor svs file!!!');
 			self.openFileBtn_['state']=tk.NORMAL;
 			return False;
 
