@@ -106,27 +106,29 @@ def getRealRectForOutput(originalResl,thumbnilRect,thumbnilSize):
 
 def initOutputFolder(mainFolderName,outputMode,level,rectArray,pieceSize):
 	Mode = "Range";
+	subfolders = [];
 	if outputMode == "by Piece":
 		Mode = "Piece";
-	if os.path.exists(mainFolderName):
-		# create sub folder for all outputs
-		for rect in rectArray:
-			# rect = (startx starty width height);
-			subFolderName = "%s_lv%d_(%d_%d_%d_%d)_ps_%d"%(Mode,level,rect[0],rect[1],rect[2],rect[3],pieceSize);
-			subFolderName = os.path.join(mainFolderName,subFolderName);
-			if os.path.exists(subFolderName):
-				for f in os.listdir(subFolderName):
-					filePath = os.path.join(subFolderName,f);
-					if os.path.isfile(filePath):	
-						os.remove(filePath);
-			else:
-				os.mkdir(subFolderName);
+	if not os.path.exists(mainFolderName):
 		# create main output folder
-	else:
-		os.mkdir(mainFolderName);
+		os.mkdir(mainFolderName);	
+	# create sub folder for all outputs
+	for rect in rectArray:
+		# rect = (startx starty width height);
+		subFolderName = "%s_lv%d_(%d_%d_%d_%d)_ps_%d"%(Mode,level,rect[0],rect[1],rect[2],rect[3],pieceSize);
+		subFolderName = os.path.join(mainFolderName,subFolderName);
+		subfolders.append(subFolderName);
+		if os.path.exists(subFolderName):
+			for f in os.listdir(subFolderName):
+				filePath = os.path.join(subFolderName,f);
+				if os.path.isfile(filePath):	
+					os.remove(filePath);
+		else:
+			os.mkdir(subFolderName);
+	return subfolders;
 
 def pieceDetailFile(outputDir,width,height,pieceSize,rows,columns):
-	file = open(outputDir+"des", "w+");
+	file = open(os.path.join(outputDir,"des.txt"), "w+");
 	string = 'width:%d\nheight:%d\npieceSize:%s\rrows:%d\ncolumns:%d'%(width,height,str(pieceSize),rows,columns);
 	file.write(string);
 	file.close();
@@ -137,7 +139,6 @@ def outputThumbnail(slide,outputDir,channel):
 	temp.reverse();
 	targetRes = None;
 	level = len(temp)-1;
-	print(slide.level_dimensions);
 	for index in range(len(temp)):
 		res = temp[index];
 		if res[0]>=1920:
@@ -147,27 +148,37 @@ def outputThumbnail(slide,outputDir,channel):
 	if targetRes == None:
 		targetRes = slide.level_dimensions[len(slide.level_dimensions)-1];
 		level = len(slide.level_dimensions)-1;
-	print(targetRes);
-	print(level);
 	outputThumbnail = slide.read_region((0,0),level, targetRes,channel);
 	cv.imwrite(os.path.join(outputDir,'Thumbnail_ch%d.png'%(channel)),outputThumbnail);
 
-def outputImageByRange(slide,level,channel,outputFormat,outputFullPathAndName,rangeRect,pieceSize=0):
-	time0 = time.time();
-	# maxSize = resolution[0];
-	# threshold_1 = 70000;
-	# if maxSize < resolution[1]:
-	# 	maxSize = resolution[1];
-	# if (maxSize > threshold_1):  ## image is too big to analyse
-	# 	# output Piece Image and thumbnil
-
-	# 	pass;
-	# else:
-	# 	# output Whole Image
-	# 	targetImage = slide.read_region((0,0),level, resolution,channel);
+def outputImageByRange(slide,level,channel,outputFormat,outputPath,rangeRect,pieceSize=0):
 	# rangeRect:[startX startY width height]
-	targetImage = slide.read_region((rangeRect[0],rangeRect[1]),level, (rangeRect[2],rangeRect[3]),channel);
-	cv.imwrite(outputFullPathAndName+'_lv_%d_w_%d_h_%d%s'%(level,rangeRect[2],rangeRect[3],outputFormat),targetImage);
+	time0 = time.time();
+	startX = int(rangeRect[0]);
+	startY = int(rangeRect[1]);
+	rangeWidth = int(rangeRect[2]);
+	rangeHeight = int(rangeRect[3]);
+
+	rows = int(math.ceil(rangeWidth/pieceSize));
+	columns = int(math.ceil(rangeHeight/pieceSize));
+	pieceDetailFile(outputPath,rangeWidth,rangeHeight,pieceSize,rows,columns);
+
+	# print(rangeRect);
+	print("rows is %d"%(rows));
+	print("columns is %d"%(columns));
+	for x in range(0,rows):
+		for y in range(0,columns):
+			width = height = pieceSize;
+			if (x+1)*pieceSize>rangeWidth:
+				width = rangeWidth- x*pieceSize;
+			if (y+1)*pieceSize>rangeHeight:
+				height = rangeHeight- y*pieceSize;
+			x_1 = startX+x*pieceSize;
+			y_1 = startY+y*pieceSize;
+			print("x %d y %d level %d channel %d  width %d height %d"%(x_1,y_1,level,channel,width,height));
+			targetImage = slide.read_region((x_1,y_1),level, (width,height),channel);
+			cv.imwrite(os.path.join(outputPath,'_c%d_lv_%d_row_%d_clo_%d%s'%(channel,level,x,y,outputFormat)),targetImage);
+			del targetImage;
 	return (time.time()-time0);
 
 class pasareWindowHandle(object):
@@ -402,7 +413,6 @@ class pasareWindowHandle(object):
 		channel = int(self.outputChannleChosen_.get()[0]);
 		fileName = os.path.basename(self.openFileNameStr_.get()).split('.')[0];
 		outputFolderName = os.path.join(self.outPutFolderStr_.get(),fileName);
-		print("outputFolderName is "+outputFolderName);
 		outputFormat = self.outputFormatChosen_.get();
 		pieceSize = int(self.pieceSizeChosen_.get());
 		outputType = self.outputType_.get();
@@ -412,17 +422,17 @@ class pasareWindowHandle(object):
 		else: # by Range
 			for rect in self.selectedRegions_:
 				temp = tuple(eval(rect));
-				print(temp);
 				rectArray.append(getRealRectForOutput(resol,temp,self.thumbnailSize_));
 
-		print(rectArray);
-
-		initOutputFolder(outputFolderName,outputType,level,rectArray,pieceSize);
+		subfolders = initOutputFolder(outputFolderName,outputType,level,rectArray,pieceSize);
 		outputThumbnail(slide,outputFolderName,channel);
 		self.warningBox('PLEASE WAIT UNTILL SUCCESS MESSAGE');
-		# timeCost = 0.0;
-		# for rect in rectArray:
-		# 	timeCost += outputImageByRange(slide,level,channel,outputFormat,outputFolderName,rect,pieceSize);
+		timeCost = 0.0;
+		for index in range(len(rectArray)):
+			rect = rectArray[index];
+			subFolderPath = subfolders[index];
+			timeCost += outputImageByRange(slide,level,channel,outputFormat,subFolderPath,rect,pieceSize);
+			
 		self.warningBox('PROCESS SUCCESS!!!\nUSING TIME %d SECONDS '%(timeCost));
 
 		self.outPutDirBtn_['state']=tk.NORMAL;
