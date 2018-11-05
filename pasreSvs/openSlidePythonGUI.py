@@ -37,66 +37,6 @@ def outputModeClassifier(outputSize):
 	else:
 		return "PieceMode";
 
-# def initMutiChannelImage(slide,level,resolution,outputFormat):
-# 	# default muti channel for 3 channels
-# 	maxSize = 40000;
-# 	threshold = 5000;
-# 	channel=4;
-# 	if (resolution[0] > maxSize) or (resolution[1] > maxSize):  ## image is too big to analyse
-# 		rows = int(math.ceil(resolution[0]/threshold));
-# 		columns = int(math.ceil(resolution[1]/threshold));
-# 		targetImage = np.zeros([resolution[1],resolution[0],channel],dtype=np.uint8);
-# 		for x in range(0,rows):
-# 			for y in range(0,columns):
-# 				width = height = threshold;
-# 				if (x+1)*threshold>resolution[0]:
-# 					width = resolution[0]- x*threshold;
-# 				if (y+1)*threshold>resolution[1]:
-# 					height = resolution[1]- y*threshold;
-# 				imagePiece = slide.read_region((x*threshold,y*threshold),level, (width,height),channel);
-# 				targetImage[y*threshold:y*threshold+height,x*threshold:x*threshold+width,:] = imagePiece;
-# 		return targetImage;
-# 	else:
-# 		targetImage = slide.read_region((0,0),level, resolution,channel);
-# 		return targetImage;
-
-# def initPieceOutputDir(outputFullPathAndName,level,channel,isByPiece,pieceSize):
-# 	# os.path.join
-# 	# create a folder for all output for an image
-# 	targetPieceDir = outputFullPathAndName;
-# 	if isByPiece:
-# 		targetPieceDir = (targetPieceDir+"_lv%d_pieceSize=%d_Channel_%d"%(level,pieceSize,channel));
-# 		targetPieceDir = targetPieceDir+"\\";
-# 		if platform.system() == 'Darwin' or platform.system() == 'Linux':
-# 			targetPieceDir = targetPieceDir+"/";
-# 		if os.path.exists(targetPieceDir):
-# 			for f in os.listdir(targetPieceDir):
-# 				filePath = os.path.join(targetPieceDir,f);
-# 				if os.path.isfile(filePath):	
-# 					os.remove(filePath);
-# 		else:
-# 			os.mkdir(targetPieceDir);
-# 	return targetPieceDir;
-
-def outputImageByPiece(sourceImage,pieceSize,channel,level,outputFormat,outputDir):
-	resolution = sourceImage.shape;
-	rows = int(math.ceil(resolution[0]/pieceSize));
-	columns = int(math.ceil(resolution[1]/pieceSize));
-	pieceDetailFile(outputDir,resolution[0],resolution[1],pieceSize,rows,columns);
-	imagePiece = np.zeros([pieceSize,pieceSize,channel],dtype=np.uint8);
-	for x in range(0,rows):
-		for y in range(0,columns):
-			width = height = pieceSize;
-			if (x+1)*pieceSize>resolution[0]:
-				width = resolution[0]- x*pieceSize;
-			if (y+1)*pieceSize>resolution[1]:
-				height = resolution[1]- y*pieceSize;
-			if channel == 1:
-				imagePiece = sourceImage[x*pieceSize:x*pieceSize+width,y*pieceSize:y*pieceSize+height];
-			else:
-				imagePiece = sourceImage[x*pieceSize:x*pieceSize+width,y*pieceSize:y*pieceSize+height,:];
-			cv.imwrite(outputDir+'_c%d_lv_%d_row_%d_clo_%d%s'%(channel,level,x,y,outputFormat),imagePiece);
-
 def getRealRectForOutput(originalResl,thumbnilRect,thumbnilSize):
 	startX = math.floor((thumbnilRect[0]/thumbnilSize[0])*originalResl[0]);
 	endX   = math.ceil((thumbnilRect[2]/thumbnilSize[0])*originalResl[0]);
@@ -203,7 +143,7 @@ class pasareWindowHandle(object):
 		self.startAnalyzeBtn_.place(x=320,y=180,anchor=tk.CENTER);
 		self.startAnalyzeBtn_['state']=tk.DISABLED;
 
-		self.resetBtn_ = tk.Button(self.root_, text="Reset",width=10,height=1, command=lambda:self.reset());
+		self.resetBtn_ = tk.Button(self.root_, text="Reset",width=10,height=1, command=lambda:self.onReset());
 		self.resetBtn_.place(x=480,y=180,anchor=tk.CENTER);
 		self.resetBtn_['state']=tk.DISABLED;
 
@@ -222,6 +162,8 @@ class pasareWindowHandle(object):
 		# self.canvaLineGroup_.clear();
 
 		self.root_.mainloop();
+	###################################################    UI RESPONSE     ########################################################
+	###########################################    BUTTON & ComboboxSelected     ########################################################
 	def selectInputFile(self):
 		filename = filedialog.askopenfilename();
 		if filename != '':
@@ -283,7 +225,37 @@ class pasareWindowHandle(object):
 			else:
 				self.newRegion_="";
 				self.redoBtn_['state'] = tk.DISABLED
+		def onChangeOutputType(self,eventObject):
+		if self.selectRegionMode_:
+			if self.outputType_.get() == "By Range":
+				return ;
+			else:
+				self.selectRegionMode_ = False;
+				self.IsOnAddMode_ = False;
+				self.addNewRegionBtn_['text']="Add Region"
+				# hide add 'new region' btn and 'delete' btn
+				# clear the rects and lines drawed on the Canvas
+				self.addNewRegionBtn_['state']=tk.DISABLED;
+				self.redoBtn_['state']=tk.DISABLED;
+				self.rangeChosen_['state']=tk.DISABLED;
+				self.startOutputBtn_['state']=tk.NORMAL;
 
+				self.clearLinesAndRects();
+				self.newRegion_="";  # UI clear
+				self.rangeChosen_['values'] = self.selectedRegions_; # UI clear
+				self.drawLinesInRegion();
+		else:
+			if self.outputType_.get() == "By Piece":
+				return;
+			else:
+				self.selectRegionMode_ = True;
+				# reshow add 'new region' btn and 'delete' btn
+				self.addNewRegionBtn_['state']=tk.NORMAL;
+				self.redoBtn_['state']=tk.NORMAL;
+				self.rangeChosen_['state']=tk.NORMAL;
+				self.startOutputBtn_['state']=tk.DISABLED;
+				self.clearLinesAndRects();
+	###################################################    TOUCH EVENT     ########################################################
 	def onClickInThumbnil(self,event):
 		if not self.IsOnAddMode_:
 			return;
@@ -322,71 +294,14 @@ class pasareWindowHandle(object):
 			self.startOutputBtn_['state']=tk.NORMAL;
 		else:
 			self.startOutputBtn_['state']=tk.DISABLED;
-		
-	def clearLinesAndRects(self):
-		for regionRect,linesArray in self.canvaLineGroup_.items():
-			if linesArray != None and len(linesArray) > 0:
-				for lineId in linesArray:
-					self.canvas_.delete(lineId);		
-		for rectId in self.selectedRects_:
-			self.canvas_.delete(rectId);
-		global PythonVersion;
-		if PythonVersion == 2:
-			del self.selectedRegions_[:];
-			del self.selectedRects_[:];
-		else:
-			self.selectedRegions_.clear();
-			self.selectedRects_.clear();
-		self.canvaLineGroup_.clear();
 
-	def onChangeOutputType(self,eventObject):
-		if self.selectRegionMode_:
-			if self.outputType_.get() == "By Range":
-				return ;
-			else:
-				self.selectRegionMode_ = False;
-				self.IsOnAddMode_ = False;
-				self.addNewRegionBtn_['text']="Add Region"
-				# hide add 'new region' btn and 'delete' btn
-				# clear the rects and lines drawed on the Canvas
-				self.addNewRegionBtn_['state']=tk.DISABLED;
-				self.redoBtn_['state']=tk.DISABLED;
-				self.rangeChosen_['state']=tk.DISABLED;
-				self.startOutputBtn_['state']=tk.NORMAL;
-
-				self.clearLinesAndRects();
-				self.newRegion_="";  # UI clear
-				self.rangeChosen_['values'] = self.selectedRegions_; # UI clear
-				self.drawLinesInRegion();
-		else:
-			if self.outputType_.get() == "By Piece":
-				return;
-			else:
-				self.selectRegionMode_ = True;
-				# reshow add 'new region' btn and 'delete' btn
-				self.addNewRegionBtn_['state']=tk.NORMAL;
-				self.redoBtn_['state']=tk.NORMAL;
-				self.rangeChosen_['state']=tk.NORMAL;
-				self.startOutputBtn_['state']=tk.DISABLED;
-				self.clearLinesAndRects();
-
-	def warningBox(self,messageInfo):
-		messagebox.showwarning(title='WARNING', 
-								  message=messageInfo);
-
-	def startOutput(self,slide):
+		def startOutput(self,slide):
 		self.outPutDirBtn_['state']=tk.DISABLED;
 		self.openFileBtn_['state']=tk.DISABLED;
 		self.startAnalyzeBtn_['state']=tk.DISABLED;
 		self.resetBtn_['state']=tk.DISABLED;
 		self.startOutputBtn_['state']=tk.DISABLED;
 
-		# print(self.resolutionChosen_.get());
-		# print(self.outputFormatChosen_.get());
-		# print(self.outPutFolderStr_.get());
-		# print(self.resolutionChosen_.get());
-		# print(self.resolutionChosen_["values"]);
-		# print(self.outputChannleChosen_.get());
 		if self.outPutFolderStr_.get() == "output folder name":
 			result = messagebox.askquestion(title='Select The Output Folder', message='If not selected the output file will do to basic directory!  '+os.path.abspath(os.curdir));
 			if result == 'yes':
@@ -421,14 +336,14 @@ class pasareWindowHandle(object):
 
 		subfolders = initOutputFolder(outputFolderName,outputType,level,rectArray,pieceSize);
 		outputThumbnail(slide,outputFolderName,channel);
-		self.warningBox('PLEASE WAIT UNTILL SUCCESS MESSAGE');
-		timeCost = 0.0;
-		for index in range(len(rectArray)):
-			rect = rectArray[index];
-			subFolderPath = subfolders[index];
-			timeCost += outputImageByRange(slide,level,channel,outputFormat,subFolderPath,rect,pieceSize);
-			
-		self.warningBox('PROCESS SUCCESS!!!\nUSING TIME %d SECONDS '%(timeCost));
+		result = messagebox.askyesno("Tips","PLEASE WAIT UNTILL SUCCESS MESSAGE");
+		if result == "Ture":
+			timeCost = 0.0;
+			for index in range(len(rectArray)):
+				rect = rectArray[index];
+				subFolderPath = subfolders[index];
+				timeCost += outputImageByRange(slide,level,channel,outputFormat,subFolderPath,rect,pieceSize);
+			messagebox.showinfo("Tips",'PROCESS SUCCESS!!!\nUSING TIME %d SECONDS '%(timeCost));
 
 		self.outPutDirBtn_['state']=tk.NORMAL;
 		self.openFileBtn_['state']=tk.NORMAL;
@@ -437,7 +352,7 @@ class pasareWindowHandle(object):
 		self.openFileBtn_['state']=tk.NORMAL;
 		self.startOutputBtn_['state']=tk.NORMAL;
 		
-	def reset(self):
+	def onReset(self):
 		self.openFileNameStr_.set("openFileName");
 		self.outPutFolderStr_.set("output folder name");
 		self.startAnalyzeBtn_['state']=tk.DISABLED;
@@ -470,22 +385,27 @@ class pasareWindowHandle(object):
 		if hasattr(self,'typeCanvas_'):
 			self.typeCanvas_.destroy();
 			delattr(self,'typeCanvas_');
-			
-	def drawLines(self):
-		outputSize = self.resolutionChosen_.get().split(" ");
-		pieceSize = int(self.pieceSizeChosen_.get());
-		rows = int(math.floor(int(outputSize[0])/pieceSize));
-		columns = int(math.floor(int(outputSize[1])/pieceSize));
-		offset = self.thumbnailSize_[0]/int(outputSize[0])*pieceSize;
-
-		for itemId in self.canvaLineArray_:
-			self.canvas_.delete(itemId);
-		for x in range(rows):
-			lineId = self.canvas_.create_line((x+1)*offset,0,(x+1)*offset,self.thumbnailSize_[1],fill='red');
-			self.canvaLineArray_.append(lineId);
-		for y in range(columns):
-			lineId = self.canvas_.create_line(0,(y+1)*offset,self.thumbnailSize_[0],(y+1)*offset,fill='blue');
-			self.canvaLineArray_.append(lineId);
+	###################################################    UI RESPONSE     ########################################################	
+	def clearLinesAndRects(self):
+		for regionRect,linesArray in self.canvaLineGroup_.items():
+			if linesArray != None and len(linesArray) > 0:
+				for lineId in linesArray:
+					self.canvas_.delete(lineId);		
+		for rectId in self.selectedRects_:
+			self.canvas_.delete(rectId);
+		global PythonVersion;
+		if PythonVersion == 2:
+			del self.selectedRegions_[:];
+			del self.selectedRects_[:];
+		else:
+			self.selectedRegions_.clear();
+			self.selectedRects_.clear();
+		self.canvaLineGroup_.clear();
+	                       #############################    UTILITY    #############################	
+	def warningBox(self,messageInfo):
+		messagebox.showwarning(title='WARNING', 
+								  message=messageInfo);
+	                       #############################    UTILITY    #############################				
 
 	def drawLinesInRegion(self,targetRect=-1):
 		if targetRect==-1:
@@ -583,7 +503,6 @@ class pasareWindowHandle(object):
 				self.rangeChosen_["values"] = self.selectedRegions_;
 				self.rangeChosen_.place(x=350,y=170,anchor=tk.CENTER);
 				self.rangeChosen_.bind("<<ComboboxSelected>>",self.onRangeItemSelected);
-
 			else:
 				self.outputType_.current(0);
 				self.selectRegionMode_ = False;
@@ -622,9 +541,8 @@ class pasareWindowHandle(object):
 			self.resetBtn_['state']=tk.NORMAL;
 			if self.selectRegionMode_:
 				self.startOutputBtn_['state']=tk.DISABLED;
-			# self.drawLines();
 		else:
-			self.warningBox('File is not a tiff file nor svs file!!!');
+			messagebox.showinfo('SUPPORT .svs FILE AND .tiff FILE ONLY');
 			self.openFileBtn_['state']=tk.NORMAL;
 			return False;
 
