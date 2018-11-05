@@ -159,13 +159,9 @@ def outputImageByRange(slide,level,channel,outputFormat,outputPath,rangeRect,pie
 	rangeWidth = int(rangeRect[2]);
 	rangeHeight = int(rangeRect[3]);
 
-	rows = int(math.ceil(rangeWidth/pieceSize));
-	columns = int(math.ceil(rangeHeight/pieceSize));
+	rows = int(math.ceil(rangeRect[2]/pieceSize));
+	columns = int(math.ceil(rangeRect[3]/pieceSize));
 	pieceDetailFile(outputPath,rangeWidth,rangeHeight,pieceSize,rows,columns);
-
-	# print(rangeRect);
-	print("rows is %d"%(rows));
-	print("columns is %d"%(columns));
 	for x in range(0,rows):
 		for y in range(0,columns):
 			width = height = pieceSize;
@@ -175,7 +171,6 @@ def outputImageByRange(slide,level,channel,outputFormat,outputPath,rangeRect,pie
 				height = rangeHeight- y*pieceSize;
 			x_1 = startX+x*pieceSize;
 			y_1 = startY+y*pieceSize;
-			print("x %d y %d level %d channel %d  width %d height %d"%(x_1,y_1,level,channel,width,height));
 			targetImage = slide.read_region((x_1,y_1),level, (width,height),channel);
 			cv.imwrite(os.path.join(outputPath,'_c%d_lv_%d_row_%d_clo_%d%s'%(channel,level,x,y,outputFormat)),targetImage);
 			del targetImage;
