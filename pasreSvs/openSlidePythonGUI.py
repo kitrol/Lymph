@@ -61,6 +61,8 @@ def initMutiChannelImage(slide,level,resolution,outputFormat):
 		return targetImage;
 
 def initPieceOutputDir(outputFullPathAndName,level,channel,isByPiece,pieceSize):
+	# os.path.join
+	# create a folder for all output for an image
 	targetPieceDir = outputFullPathAndName;
 	if isByPiece:
 		targetPieceDir = (targetPieceDir+"_lv%d_pieceSize=%d_Channel_%d"%(level,pieceSize,channel));
@@ -115,14 +117,18 @@ def outputImage(slide,level,rangeRect,channel,outputFormat,outputFullPathAndName
 
 	if outputModeClassifier(resolution) =="RangeMode":  ## output the range selected by user only
 		# output Piece Image and thumbnil
-		thumbnailSize = slide.level_dimensions[len(slide.level_dimensions)-1];
-		print(thumbnailSize);
-		outputThumbnail = slide.read_region((0,0),level, thumbnailSize,channel);
-		cv.imwrite(outputFullPathAndName+'_lv_%d_w_%d_h_%d_id_%d%s'%(level,rangeRect[2],rangeRect[3],index,outputFormat),outputThumbnail);
-	else: ##output the whole Image
+		pass;
+	else: 
+		##output the whole Image
 		# output Whole Image
 		targetImage = slide.read_region((rangeRect[0],rangeRect[1]),level, (rangeRect[2],rangeRect[3]),channel);
 	
+	# save thumbnail
+	thumbnailSize = slide.level_dimensions[len(slide.level_dimensions)-1];
+	print(thumbnailSize);
+	outputThumbnail = slide.read_region((0,0),level, thumbnailSize,channel);
+	cv.imwrite(outputFullPathAndName+'_lv_%d_w_%d_h_%d_id_%d%s'%(level,rangeRect[2],rangeRect[3],index,outputFormat),outputThumbnail);
+
 
 	# mutiChannelImage = initMutiChannelImage(slide,level,resolution,outputFormat);
 	# targetImage = mutiChannelImage;
@@ -139,15 +145,19 @@ def outputImage(slide,level,rangeRect,channel,outputFormat,outputFullPathAndName
 	
 	return (time.time()-time0);
 
-def outputImageByRange(slide,level,resolution,channel,outputFormat,outputFullPathAndName,rangeRect,index=1):
+def outputImageByRange(slide,level,resolution,channel,outputFormat,outputFullPathAndName,rangeRect,index=-1):
 	time0 = time.time();
-	if (maxSize > threshold_1):  ## image is too big to analyse
-		# output Piece Image and thumbnil
+	# maxSize = resolution[0];
+	# threshold_1 = 70000;
+	# if maxSize < resolution[1]:
+	# 	maxSize = resolution[1];
+	# if (maxSize > threshold_1):  ## image is too big to analyse
+	# 	# output Piece Image and thumbnil
 
-		pass;
-	else:
-		# output Whole Image
-		targetImage = slide.read_region((0,0),level, resolution,channel);
+	# 	pass;
+	# else:
+	# 	# output Whole Image
+	# 	targetImage = slide.read_region((0,0),level, resolution,channel);
 	# rangeRect:[startX startY width height]
 	resolution = (rangeRect[2],rangeRect[3]);
 	targetImage = slide.read_region((rangeRect[0],rangeRect[1]),level, resolution,channel);
@@ -325,6 +335,7 @@ class pasareWindowHandle(object):
 				self.addNewRegionBtn_['state']=tk.DISABLED;
 				self.redoBtn_['state']=tk.DISABLED;
 				self.rangeChosen_['state']=tk.DISABLED;
+				self.startOutputBtn_['state']=tk.NORMAL;
 
 				self.clearLinesAndRects();
 				self.newRegion_="";  # UI clear
@@ -339,6 +350,7 @@ class pasareWindowHandle(object):
 				self.addNewRegionBtn_['state']=tk.NORMAL;
 				self.redoBtn_['state']=tk.NORMAL;
 				self.rangeChosen_['state']=tk.NORMAL;
+				self.startOutputBtn_['state']=tk.DISABLED;
 				self.clearLinesAndRects();
 
 	def warningBox(self,messageInfo):
@@ -378,18 +390,30 @@ class pasareWindowHandle(object):
 		resol = (width,height);
 		channel = int(self.outputChannleChosen_.get()[0]);
 		fileName = os.path.basename(self.openFileNameStr_.get()).split('.')[0];
-		outputName = self.outPutFolderStr_.get()+"\\"+fileName;
-		if platform.system() == 'Darwin' or platform.system() == 'Linux':
-			outputName = self.outPutFolderStr_.get()+"/"+fileName;
+		# outputName = self.outPutFolderStr_.get()+"\\"+fileName;
+		# if platform.system() == 'Darwin' or platform.system() == 'Linux':
+		# 	outputName = self.outPutFolderStr_.get()+"/"+fileName;
+		outputName = os.path.join(self.outPutFolderStr_.get(),fileName);
+		print("outputName is "+outputName);
 		outputFormat = self.outputFormatChosen_.get();
 		pieceSize = int(self.pieceSizeChosen_.get());
-		self.warningBox('PLEASE WAIT UNTILL SUCCESS MESSAGE');
+
+
+		if os.path.exists(outputName):
+			for f in os.listdir(outputName):
+				filePath = os.path.join(outputName,f);
+				if os.path.isfile(filePath):	
+					os.remove(filePath);
+		else:
+			os.mkdir(outputName);
+
+		# self.warningBox('PLEASE WAIT UNTILL SUCCESS MESSAGE');
 		# timeCost = outputImage(slide,level,resol,channel,outputFormat,outputName,isByPiece=True,pieceSize=pieceSize);#self.isByPiece_
-		rangeSize = (12000,20000,20000,10000);
-		timeCost = outputImageByRange(slide,level,resol,channel,outputFormat,outputName,rangeSize);
-		rangeSize = (20000,40000,20001,10001);
-		timeCost = outputImageByRange(slide,level,resol,channel,outputFormat,outputName,rangeSize);
-		self.warningBox('PROCESS SUCCESS!!!\nUSING TIME %d SECONDS '%(timeCost));
+		# rangeSize = (12000,20000,20000,10000);
+		# timeCost = outputImageByRange(slide,level,resol,channel,outputFormat,outputName,rangeSize);
+		# rangeSize = (20000,40000,20001,10001);
+		# timeCost = outputImageByRange(slide,level,resol,channel,outputFormat,outputName,rangeSize);
+		# self.warningBox('PROCESS SUCCESS!!!\nUSING TIME %d SECONDS '%(timeCost));
 
 		self.outPutDirBtn_['state']=tk.NORMAL;
 		self.openFileBtn_['state']=tk.NORMAL;
