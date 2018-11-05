@@ -37,46 +37,46 @@ def outputModeClassifier(outputSize):
 	else:
 		return "PieceMode";
 
-def initMutiChannelImage(slide,level,resolution,outputFormat):
-	# default muti channel for 3 channels
-	maxSize = 40000;
-	threshold = 5000;
-	channel=4;
-	if (resolution[0] > maxSize) or (resolution[1] > maxSize):  ## image is too big to analyse
-		rows = int(math.ceil(resolution[0]/threshold));
-		columns = int(math.ceil(resolution[1]/threshold));
-		targetImage = np.zeros([resolution[1],resolution[0],channel],dtype=np.uint8);
-		for x in range(0,rows):
-			for y in range(0,columns):
-				width = height = threshold;
-				if (x+1)*threshold>resolution[0]:
-					width = resolution[0]- x*threshold;
-				if (y+1)*threshold>resolution[1]:
-					height = resolution[1]- y*threshold;
-				imagePiece = slide.read_region((x*threshold,y*threshold),level, (width,height),channel);
-				targetImage[y*threshold:y*threshold+height,x*threshold:x*threshold+width,:] = imagePiece;
-		return targetImage;
-	else:
-		targetImage = slide.read_region((0,0),level, resolution,channel);
-		return targetImage;
+# def initMutiChannelImage(slide,level,resolution,outputFormat):
+# 	# default muti channel for 3 channels
+# 	maxSize = 40000;
+# 	threshold = 5000;
+# 	channel=4;
+# 	if (resolution[0] > maxSize) or (resolution[1] > maxSize):  ## image is too big to analyse
+# 		rows = int(math.ceil(resolution[0]/threshold));
+# 		columns = int(math.ceil(resolution[1]/threshold));
+# 		targetImage = np.zeros([resolution[1],resolution[0],channel],dtype=np.uint8);
+# 		for x in range(0,rows):
+# 			for y in range(0,columns):
+# 				width = height = threshold;
+# 				if (x+1)*threshold>resolution[0]:
+# 					width = resolution[0]- x*threshold;
+# 				if (y+1)*threshold>resolution[1]:
+# 					height = resolution[1]- y*threshold;
+# 				imagePiece = slide.read_region((x*threshold,y*threshold),level, (width,height),channel);
+# 				targetImage[y*threshold:y*threshold+height,x*threshold:x*threshold+width,:] = imagePiece;
+# 		return targetImage;
+# 	else:
+# 		targetImage = slide.read_region((0,0),level, resolution,channel);
+# 		return targetImage;
 
-def initPieceOutputDir(outputFullPathAndName,level,channel,isByPiece,pieceSize):
-	# os.path.join
-	# create a folder for all output for an image
-	targetPieceDir = outputFullPathAndName;
-	if isByPiece:
-		targetPieceDir = (targetPieceDir+"_lv%d_pieceSize=%d_Channel_%d"%(level,pieceSize,channel));
-		targetPieceDir = targetPieceDir+"\\";
-		if platform.system() == 'Darwin' or platform.system() == 'Linux':
-			targetPieceDir = targetPieceDir+"/";
-		if os.path.exists(targetPieceDir):
-			for f in os.listdir(targetPieceDir):
-				filePath = os.path.join(targetPieceDir,f);
-				if os.path.isfile(filePath):	
-					os.remove(filePath);
-		else:
-			os.mkdir(targetPieceDir);
-	return targetPieceDir;
+# def initPieceOutputDir(outputFullPathAndName,level,channel,isByPiece,pieceSize):
+# 	# os.path.join
+# 	# create a folder for all output for an image
+# 	targetPieceDir = outputFullPathAndName;
+# 	if isByPiece:
+# 		targetPieceDir = (targetPieceDir+"_lv%d_pieceSize=%d_Channel_%d"%(level,pieceSize,channel));
+# 		targetPieceDir = targetPieceDir+"\\";
+# 		if platform.system() == 'Darwin' or platform.system() == 'Linux':
+# 			targetPieceDir = targetPieceDir+"/";
+# 		if os.path.exists(targetPieceDir):
+# 			for f in os.listdir(targetPieceDir):
+# 				filePath = os.path.join(targetPieceDir,f);
+# 				if os.path.isfile(filePath):	
+# 					os.remove(filePath);
+# 		else:
+# 			os.mkdir(targetPieceDir);
+# 	return targetPieceDir;
 
 def outputImageByPiece(sourceImage,pieceSize,channel,level,outputFormat,outputDir):
 	resolution = sourceImage.shape;
@@ -97,55 +97,62 @@ def outputImageByPiece(sourceImage,pieceSize,channel,level,outputFormat,outputDi
 				imagePiece = sourceImage[x*pieceSize:x*pieceSize+width,y*pieceSize:y*pieceSize+height,:];
 			cv.imwrite(outputDir+'_c%d_lv_%d_row_%d_clo_%d%s'%(channel,level,x,y,outputFormat),imagePiece);
 
+def getRealRectForOutput(originalResl,thumbnilRect,thumbnilSize):
+	startX = math.floor((thumbnilRect[0]/thumbnilSize[0])*originalResl[0]);
+	endX   = math.ceil((thumbnilRect[2]/thumbnilSize[0])*originalResl[0]);
+	startY = math.floor((thumbnilRect[1]/thumbnilSize[1])*originalResl[1]);
+	endY   = math.ceil((thumbnilRect[3]/thumbnilSize[1])*originalResl[1]);
+	return (startX,startY,endX-startX,endY-startY);
+
+def initOutputFolder(mainFolderName,outputMode,level,rectArray,pieceSize):
+	Mode = "Range";
+	if outputMode == "by Piece":
+		Mode = "Piece";
+	if os.path.exists(mainFolderName):
+		# create sub folder for all outputs
+		for rect in rectArray:
+			# rect = (startx starty width height);
+			subFolderName = "%s_lv%d_(%d_%d_%d_%d)_ps_%d"%(Mode,level,rect[0],rect[1],rect[2],rect[3],pieceSize);
+			subFolderName = os.path.join(mainFolderName,subFolderName);
+			if os.path.exists(subFolderName):
+				for f in os.listdir(subFolderName):
+					filePath = os.path.join(subFolderName,f);
+					if os.path.isfile(filePath):	
+						os.remove(filePath);
+			else:
+				os.mkdir(subFolderName);
+		# create main output folder
+	else:
+		os.mkdir(mainFolderName);
+
 def pieceDetailFile(outputDir,width,height,pieceSize,rows,columns):
 	file = open(outputDir+"des", "w+");
 	string = 'width:%d\nheight:%d\npieceSize:%s\rrows:%d\ncolumns:%d'%(width,height,str(pieceSize),rows,columns);
 	file.write(string);
 	file.close();
-def readImageByPiece():
-	pass;			
-def outputImage(slide,level,rangeRect,channel,outputFormat,outputFullPathAndName,isByPiece=False,pieceSize=0,index=1): ##needWriteToDisk=True
-	time0 = time.time();
-	if (pieceSize == 0) or (not isByPiece):
-		pieceSize = 3000;
-	threshold_1 = 40000;
-	threshold_2 = 70000;
-	channel=4;
-	maxSize = resolution[0];
-	if maxSize < resolution[1]:
-		maxSize = resolution[1];
 
-	if outputModeClassifier(resolution) =="RangeMode":  ## output the range selected by user only
-		# output Piece Image and thumbnil
-		pass;
-	else: 
-		##output the whole Image
-		# output Whole Image
-		targetImage = slide.read_region((rangeRect[0],rangeRect[1]),level, (rangeRect[2],rangeRect[3]),channel);
-	
-	# save thumbnail
-	thumbnailSize = slide.level_dimensions[len(slide.level_dimensions)-1];
-	print(thumbnailSize);
-	outputThumbnail = slide.read_region((0,0),level, thumbnailSize,channel);
-	cv.imwrite(outputFullPathAndName+'_lv_%d_w_%d_h_%d_id_%d%s'%(level,rangeRect[2],rangeRect[3],index,outputFormat),outputThumbnail);
+def outputThumbnail(slide,outputDir,channel):
+	fileName = outputDir+'Thumbnail_ch%d.png'%(channel);
+	temp=list(slide.level_dimensions);
+	temp.reverse();
+	targetRes = None;
+	level = len(temp)-1;
+	print(slide.level_dimensions);
+	for index in range(len(temp)):
+		res = temp[index];
+		if res[0]>=1920:
+			targetRes = res;
+			level = len(temp)-index-1;
+			break;
+	if targetRes == None:
+		targetRes = slide.level_dimensions[len(slide.level_dimensions)-1];
+		level = len(slide.level_dimensions)-1;
+	print(targetRes);
+	print(level);
+	outputThumbnail = slide.read_region((0,0),level, targetRes,channel);
+	cv.imwrite(os.path.join(outputDir,'Thumbnail_ch%d.png'%(channel)),outputThumbnail);
 
-
-	# mutiChannelImage = initMutiChannelImage(slide,level,resolution,outputFormat);
-	# targetImage = mutiChannelImage;
-	# if channel == 1:
-	# 	singleChannelImage = cv.cvtColor(mutiChannelImage, cv.COLOR_BGR2GRAY);
-	# 	targetImage = singleChannelImage;
-	# elif channel == 3:
-	# 	targetImage = mutiChannelImage[:,:,:3];
-		
-	# cv.imwrite(outputFullPathAndName+'_c%d_lv_%d%s'%(channel,level,outputFormat),targetImage);
-	# if isByPiece:
-	# 	pieceDir = initPieceOutputDir(outputFullPathAndName,level,channel,isByPiece,pieceSize);
-	# 	outputImageByPiece(targetImage,pieceSize,channel,level,outputFormat,pieceDir);
-	
-	return (time.time()-time0);
-
-def outputImageByRange(slide,level,resolution,channel,outputFormat,outputFullPathAndName,rangeRect,index=-1):
+def outputImageByRange(slide,level,channel,outputFormat,outputFullPathAndName,rangeRect,pieceSize=0):
 	time0 = time.time();
 	# maxSize = resolution[0];
 	# threshold_1 = 70000;
@@ -159,10 +166,10 @@ def outputImageByRange(slide,level,resolution,channel,outputFormat,outputFullPat
 	# 	# output Whole Image
 	# 	targetImage = slide.read_region((0,0),level, resolution,channel);
 	# rangeRect:[startX startY width height]
-	resolution = (rangeRect[2],rangeRect[3]);
-	targetImage = slide.read_region((rangeRect[0],rangeRect[1]),level, resolution,channel);
+	targetImage = slide.read_region((rangeRect[0],rangeRect[1]),level, (rangeRect[2],rangeRect[3]),channel);
 	cv.imwrite(outputFullPathAndName+'_lv_%d_w_%d_h_%d%s'%(level,rangeRect[2],rangeRect[3],outputFormat),targetImage);
 	return (time.time()-time0);
+
 class pasareWindowHandle(object):
 	"""docstring for pasareWindowHandle"""
 	def __init__(self):
@@ -318,16 +325,13 @@ class pasareWindowHandle(object):
 		for rectId in self.selectedRects_:
 			self.canvas_.delete(rectId);
 		global PythonVersion;
-		print("current python version is %d"%(PythonVersion));
 		if PythonVersion == 2:
 			del self.selectedRegions_[:];
 			del self.selectedRects_[:];
 		else:
 			self.selectedRegions_.clear();
 			self.selectedRects_.clear();
-		self.canvaLineGroup_.clear();		
-				
-
+		self.canvaLineGroup_.clear();
 
 	def onChangeOutputType(self,eventObject):
 		if self.selectRegionMode_:
@@ -397,30 +401,29 @@ class pasareWindowHandle(object):
 		resol = (width,height);
 		channel = int(self.outputChannleChosen_.get()[0]);
 		fileName = os.path.basename(self.openFileNameStr_.get()).split('.')[0];
-		# outputName = self.outPutFolderStr_.get()+"\\"+fileName;
-		# if platform.system() == 'Darwin' or platform.system() == 'Linux':
-		# 	outputName = self.outPutFolderStr_.get()+"/"+fileName;
-		outputName = os.path.join(self.outPutFolderStr_.get(),fileName);
-		print("outputName is "+outputName);
+		outputFolderName = os.path.join(self.outPutFolderStr_.get(),fileName);
+		print("outputFolderName is "+outputFolderName);
 		outputFormat = self.outputFormatChosen_.get();
 		pieceSize = int(self.pieceSizeChosen_.get());
+		outputType = self.outputType_.get();
+		rectArray = [];
+		if outputType == "By Piece":
+			rectArray.append((0,0,resol[0],resol[1]));
+		else: # by Range
+			for rect in self.selectedRegions_:
+				temp = tuple(eval(rect));
+				print(temp);
+				rectArray.append(getRealRectForOutput(resol,temp,self.thumbnailSize_));
 
+		print(rectArray);
 
-		if os.path.exists(outputName):
-			for f in os.listdir(outputName):
-				filePath = os.path.join(outputName,f);
-				if os.path.isfile(filePath):	
-					os.remove(filePath);
-		else:
-			os.mkdir(outputName);
-
-		# self.warningBox('PLEASE WAIT UNTILL SUCCESS MESSAGE');
-		# timeCost = outputImage(slide,level,resol,channel,outputFormat,outputName,isByPiece=True,pieceSize=pieceSize);#self.isByPiece_
-		# rangeSize = (12000,20000,20000,10000);
-		# timeCost = outputImageByRange(slide,level,resol,channel,outputFormat,outputName,rangeSize);
-		# rangeSize = (20000,40000,20001,10001);
-		# timeCost = outputImageByRange(slide,level,resol,channel,outputFormat,outputName,rangeSize);
-		# self.warningBox('PROCESS SUCCESS!!!\nUSING TIME %d SECONDS '%(timeCost));
+		initOutputFolder(outputFolderName,outputType,level,rectArray,pieceSize);
+		outputThumbnail(slide,outputFolderName,channel);
+		self.warningBox('PLEASE WAIT UNTILL SUCCESS MESSAGE');
+		# timeCost = 0.0;
+		# for rect in rectArray:
+		# 	timeCost += outputImageByRange(slide,level,channel,outputFormat,outputFolderName,rect,pieceSize);
+		self.warningBox('PROCESS SUCCESS!!!\nUSING TIME %d SECONDS '%(timeCost));
 
 		self.outPutDirBtn_['state']=tk.NORMAL;
 		self.openFileBtn_['state']=tk.NORMAL;
@@ -541,8 +544,6 @@ class pasareWindowHandle(object):
 			self.canvas_.bind("<Button-1>", self.onClickInThumbnil);
 			self.canvas_.bind("<B1-Motion>", self.onChangeRegion);
 			self.canvas_.bind("<ButtonRelease-1>", self.onClickFinished);
-			
-			# self.canvas.create_line(0,100,200,100,fill='red');
         
 			choseResolutionLabel = tk.Label(self.rootFrame_, text="Choose the output Resolution", font=("Arial",12), width=25, height=1);
 			choseResolutionLabel.place(x=120,y=20,anchor=tk.CENTER);
@@ -554,21 +555,13 @@ class pasareWindowHandle(object):
 			self.resolutionChosen_.current(0);
 			self.resolutionChosen_.place(x=120,y=50,anchor=tk.CENTER);
 			self.resolutionChosen_.bind("<<ComboboxSelected>>",self.onSizeChange);
-			
-			# self.typeCanvas_ = Canvas(self.root_, width=200,height=150,bg="blue");#
-			# self.typeCanvas_.place(x=270,y=265,anchor=tk.NW);
 
 			outputTypeLabel = tk.Label(self.rootFrame_, text="Choose output type", font=("Arial",12), width=25, height=1);
 			outputTypeLabel.place(x=350,y=20,anchor=tk.CENTER);
 			self.outputType_ = tk.StringVar();
 			self.outputType_ = ttk.Combobox(self.rootFrame_, width=20, textvariable=self.outputType_, state="readonly");
 			self.outputType_["values"] = ("By Piece","By Range");
-			# def outputModeClassifier(outputSize):
-			# 	threshold = 70000;
-			# 	if (outputSize[0] > threshold) or (outputSize[1] > threshold):
-			# 		return "RangeMode";
-			# 	else:
-			# 		return "PieceMode";
+
 			defaultResl = slide.level_dimensions[0];
 			if outputModeClassifier(defaultResl) == "RangeMode":
 				self.selectRegionMode_ = True;
@@ -578,7 +571,6 @@ class pasareWindowHandle(object):
 				self.addNewRegionBtn_.place(x=310,y=140,anchor=tk.CENTER);
 				self.redoBtn_ = tk.Button(self.rootFrame_, text="Delete", command=lambda:self.onDeleteRegion());
 				self.redoBtn_.place(x=400,y=140,anchor=tk.CENTER);
-				# self.addNewRegionBtn_['state']=tk.DISABLED;
 				self.redoBtn_['state']=tk.DISABLED;# active, disabled, or normal
 
 				self.newRegion_ = tk.StringVar();
@@ -602,10 +594,6 @@ class pasareWindowHandle(object):
 			self.pieceSizeChosen_.current(3);
 			self.pieceSizeChosen_.place(x=350,y=110,anchor=tk.CENTER);
 			self.pieceSizeChosen_.bind("<<ComboboxSelected>>",self.onSizeChange);
-
-
-			# self.isByPieceCheck_ = Checkbutton(self.rootFrame_,text ='output Piece?',command = lambda:self.onIsByPieceCheck());
-			# self.isByPieceCheck_.place(x=350,y=20,anchor=tk.CENTER);
 
 			choseFormatLabel = tk.Label(self.rootFrame_, text="Choose the output Fromat", font=("Arial",12), width=25, height=1);
 			choseFormatLabel.place(x=120,y=80,anchor=tk.CENTER);
