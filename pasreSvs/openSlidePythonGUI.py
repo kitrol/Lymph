@@ -317,9 +317,16 @@ class pasareWindowHandle(object):
 					self.canvas_.delete(lineId);		
 		for rectId in self.selectedRects_:
 			self.canvas_.delete(rectId);
-		self.selectedRegions_.clear();
-		self.selectedRects_.clear();
+		global PythonVersion;
+		print("current python version is %d"%(PythonVersion));
+		if PythonVersion == 2:
+			del self.selectedRegions_[:];
+			del self.selectedRects_[:];
+		else:
+			self.selectedRegions_.clear();
+			self.selectedRects_.clear();
 		self.canvaLineGroup_.clear();		
+				
 
 
 	def onChangeOutputType(self,eventObject):
@@ -430,9 +437,14 @@ class pasareWindowHandle(object):
 		self.IsOnAddMode_ = False;
 		self.IsEditable_ = False;
 		self.activeRect_ = None;
-		self.selectedRegions_.clear();
-		self.selectedRects_.clear();
-		self.canvaLineGroup_.clear();
+		global PythonVersion;
+		if PythonVersion == 2:
+			del self.selectedRegions_[:];
+			del self.selectedRects_[:];
+		else:
+			self.selectedRegions_.clear();
+			self.selectedRects_.clear();
+		self.canvaLineGroup_.clear();	
 
 		self.canvas_.delete("all");
 		self.canvaLineArray_ = [];
