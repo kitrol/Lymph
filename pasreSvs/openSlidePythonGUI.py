@@ -93,17 +93,18 @@ def outputThumbnail(slide,outputDir,channel):
 
 def outputImageByRange(slide,level,channel,outputFormat,outputPath,rangeRect,pieceSize=0):
 	# rangeRect:[startX startY width height]
+	print("outputImageByRange");
 	time0 = time.time();
 	startX = int(rangeRect[0]);
 	startY = int(rangeRect[1]);
 	rangeWidth = int(rangeRect[2]);
 	rangeHeight = int(rangeRect[3]);
-
-	rows = int(math.ceil(rangeRect[2]/pieceSize));
-	columns = int(math.ceil(rangeRect[3]/pieceSize));
+	print(rangeRect);
+	columns = int(math.ceil(rangeRect[2]/pieceSize));
+	rows = int(math.ceil(rangeRect[3]/pieceSize));
 	pieceDetailFile(outputPath,rangeWidth,rangeHeight,pieceSize,rows,columns);
-	for x in range(0,rows):
-		for y in range(0,columns):
+	for y in range(0,rows):
+		for x in range(0,columns):
 			width = height = pieceSize;
 			if (x+1)*pieceSize>rangeWidth:
 				width = rangeWidth- x*pieceSize;
@@ -112,7 +113,7 @@ def outputImageByRange(slide,level,channel,outputFormat,outputPath,rangeRect,pie
 			x_1 = startX+x*pieceSize;
 			y_1 = startY+y*pieceSize;
 			targetImage = slide.read_region((x_1,y_1),level, (width,height),channel);
-			cv.imwrite(os.path.join(outputPath,'_c%d_lv_%d_row_%d_clo_%d%s'%(channel,level,x,y,outputFormat)),targetImage);
+			cv.imwrite(os.path.join(outputPath,'_c%d_lv_%d_row_%d_clo_%d%s'%(channel,level,y,x,outputFormat)),targetImage);
 			del targetImage;
 	return (time.time()-time0);
 
@@ -225,7 +226,7 @@ class pasareWindowHandle(object):
 			else:
 				self.newRegion_="";
 				self.redoBtn_['state'] = tk.DISABLED
-		def onChangeOutputType(self,eventObject):
+	def onChangeOutputType(self,eventObject):
 		if self.selectRegionMode_:
 			if self.outputType_.get() == "By Range":
 				return ;
@@ -255,6 +256,7 @@ class pasareWindowHandle(object):
 				self.rangeChosen_['state']=tk.NORMAL;
 				self.startOutputBtn_['state']=tk.DISABLED;
 				self.clearLinesAndRects();
+
 	###################################################    TOUCH EVENT     ########################################################
 	def onClickInThumbnil(self,event):
 		if not self.IsOnAddMode_:
@@ -295,7 +297,7 @@ class pasareWindowHandle(object):
 		else:
 			self.startOutputBtn_['state']=tk.DISABLED;
 
-		def startOutput(self,slide):
+	def startOutput(self,slide):
 		self.outPutDirBtn_['state']=tk.DISABLED;
 		self.openFileBtn_['state']=tk.DISABLED;
 		self.startAnalyzeBtn_['state']=tk.DISABLED;
@@ -337,13 +339,15 @@ class pasareWindowHandle(object):
 		subfolders = initOutputFolder(outputFolderName,outputType,level,rectArray,pieceSize);
 		outputThumbnail(slide,outputFolderName,channel);
 		result = messagebox.askyesno("Tips","PLEASE WAIT UNTILL SUCCESS MESSAGE");
-		if result == "Ture":
+		if result == True:
 			timeCost = 0.0;
-			for index in range(len(rectArray)):
-				rect = rectArray[index];
-				subFolderPath = subfolders[index];
+			for i in range(len(rectArray)):
+				rect = rectArray[i];
+				subFolderPath = subfolders[i];
 				timeCost += outputImageByRange(slide,level,channel,outputFormat,subFolderPath,rect,pieceSize);
 			messagebox.showinfo("Tips",'PROCESS SUCCESS!!!\nUSING TIME %d SECONDS '%(timeCost));
+
+
 
 		self.outPutDirBtn_['state']=tk.NORMAL;
 		self.openFileBtn_['state']=tk.NORMAL;
@@ -351,7 +355,6 @@ class pasareWindowHandle(object):
 		self.resetBtn_['state']=tk.NORMAL;
 		self.openFileBtn_['state']=tk.NORMAL;
 		self.startOutputBtn_['state']=tk.NORMAL;
-		
 	def onReset(self):
 		self.openFileNameStr_.set("openFileName");
 		self.outPutFolderStr_.set("output folder name");
