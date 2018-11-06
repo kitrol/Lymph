@@ -93,13 +93,11 @@ def outputThumbnail(slide,outputDir,channel):
 
 def outputImageByRange(slide,level,channel,outputFormat,outputPath,rangeRect,pieceSize=0):
 	# rangeRect:[startX startY width height]
-	print("outputImageByRange");
 	time0 = time.time();
 	startX = int(rangeRect[0]);
 	startY = int(rangeRect[1]);
 	rangeWidth = int(rangeRect[2]);
 	rangeHeight = int(rangeRect[3]);
-	print(rangeRect);
 	columns = int(math.ceil(rangeRect[2]/pieceSize));
 	rows = int(math.ceil(rangeRect[3]/pieceSize));
 	pieceDetailFile(outputPath,rangeWidth,rangeHeight,pieceSize,rows,columns);
@@ -114,6 +112,7 @@ def outputImageByRange(slide,level,channel,outputFormat,outputPath,rangeRect,pie
 			y_1 = startY+y*pieceSize;
 			targetImage = slide.read_region((x_1,y_1),level, (width,height),channel);
 			cv.imwrite(os.path.join(outputPath,'_c%d_lv_%d_row_%d_clo_%d%s'%(channel,level,y,x,outputFormat)),targetImage);
+			print("Outputing image %d/%d time used %ds"%((y)*rows+(x+1),rows*columns,(time.time()-time0)));
 			del targetImage;
 	return (time.time()-time0);
 
@@ -335,20 +334,19 @@ class pasareWindowHandle(object):
 			for rect in self.selectedRegions_:
 				temp = tuple(eval(rect));
 				rectArray.append(getRealRectForOutput(resol,temp,self.thumbnailSize_));
-
 		subfolders = initOutputFolder(outputFolderName,outputType,level,rectArray,pieceSize);
 		outputThumbnail(slide,outputFolderName,channel);
-		result = messagebox.askyesno("Tips","PLEASE WAIT UNTILL SUCCESS MESSAGE");
+		result = messagebox.askyesno("Tips","PLEASE WAIT UNTILL SUCCESS MESSAGE.Output Folder: %s"%(str(subfolders)));
 		if result == True:
+			print("########################Start Output########################");
 			timeCost = 0.0;
 			for i in range(len(rectArray)):
 				rect = rectArray[i];
 				subFolderPath = subfolders[i];
 				timeCost += outputImageByRange(slide,level,channel,outputFormat,subFolderPath,rect,pieceSize);
+			print("########################End Output########################");
 			messagebox.showinfo("Tips",'PROCESS SUCCESS!!!\nUSING TIME %d SECONDS '%(timeCost));
-
-
-
+			
 		self.outPutDirBtn_['state']=tk.NORMAL;
 		self.openFileBtn_['state']=tk.NORMAL;
 		self.startAnalyzeBtn_['state']=tk.NORMAL;
@@ -385,9 +383,6 @@ class pasareWindowHandle(object):
 		if hasattr(self,'canvas_'):
 			self.canvas_.destroy();
 			delattr(self,'canvas_');
-		if hasattr(self,'typeCanvas_'):
-			self.typeCanvas_.destroy();
-			delattr(self,'typeCanvas_');
 	###################################################    UI RESPONSE     ########################################################	
 	def clearLinesAndRects(self):
 		for regionRect,linesArray in self.canvaLineGroup_.items():
