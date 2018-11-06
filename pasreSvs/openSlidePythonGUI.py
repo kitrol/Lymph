@@ -47,7 +47,7 @@ def getRealRectForOutput(originalResl,thumbnilRect,thumbnilSize):
 def initOutputFolder(mainFolderName,outputMode,level,rectArray,pieceSize):
 	Mode = "Range";
 	subfolders = [];
-	if outputMode == "by Piece":
+	if outputMode == "By Piece":
 		Mode = "Piece";
 	if not os.path.exists(mainFolderName):
 		# create main output folder
@@ -287,7 +287,7 @@ class pasareWindowHandle(object):
 		self.rangeChosen_['values'] = self.selectedRegions_;
 		self.rangeChosen_.current(len(self.selectedRegions_)-1);
 		self.activeRect_ = None;
-		self.redoBtn_['state']=tk.ACTIVE;
+		self.redoBtn_['state']=tk.NORMAL;
 		self.addNewRegionBtn_['text']="Add Region";
 		self.IsOnAddMode_ = False;
 		self.drawLinesInRegion(regionItem);
@@ -302,6 +302,8 @@ class pasareWindowHandle(object):
 		self.startAnalyzeBtn_['state']=tk.DISABLED;
 		self.resetBtn_['state']=tk.DISABLED;
 		self.startOutputBtn_['state']=tk.DISABLED;
+		self.addNewRegionBtn_['state']=tk.DISABLED;
+		self.redoBtn_['state']=tk.DISABLED;
 
 		if self.outPutFolderStr_.get() == "output folder name":
 			result = messagebox.askquestion(title='Select The Output Folder', message='If not selected the output file will do to basic directory!  '+os.path.abspath(os.curdir));
@@ -336,6 +338,7 @@ class pasareWindowHandle(object):
 				rectArray.append(getRealRectForOutput(resol,temp,self.thumbnailSize_));
 		subfolders = initOutputFolder(outputFolderName,outputType,level,rectArray,pieceSize);
 		outputThumbnail(slide,outputFolderName,channel);
+		print("output folders %s"%(subfolders));
 		result = messagebox.askyesno("Tips","PLEASE WAIT UNTILL SUCCESS MESSAGE.Output Folder: %s"%(str(subfolders)));
 		if result == True:
 			print("########################Start Output########################");
@@ -344,7 +347,7 @@ class pasareWindowHandle(object):
 				rect = rectArray[i];
 				subFolderPath = subfolders[i];
 				timeCost += outputImageByRange(slide,level,channel,outputFormat,subFolderPath,rect,pieceSize);
-			print("########################End Output########################");
+			print("#########################End Output#########################");
 			messagebox.showinfo("Tips",'PROCESS SUCCESS!!!\nUSING TIME %d SECONDS '%(timeCost));
 			
 		self.outPutDirBtn_['state']=tk.NORMAL;
@@ -353,6 +356,13 @@ class pasareWindowHandle(object):
 		self.resetBtn_['state']=tk.NORMAL;
 		self.openFileBtn_['state']=tk.NORMAL;
 		self.startOutputBtn_['state']=tk.NORMAL;
+
+		if len(self.selectedRegions_)>0:
+			self.redoBtn_['state']=tk.NORMAL;
+		else:
+			self.redoBtn_['state']=tk.DISABLED;
+		if outputType == "By Range":
+			self.addNewRegionBtn_['state']=tk.NORMAL;
 	def onReset(self):
 		self.openFileNameStr_.set("openFileName");
 		self.outPutFolderStr_.set("output folder name");
