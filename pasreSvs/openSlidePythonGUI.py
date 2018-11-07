@@ -12,6 +12,7 @@ import math
 import time
 import platform
 import shutil
+import threading
 
 
 try:
@@ -101,6 +102,16 @@ def outputImageByRange(slide,level,channel,outputFormat,outputPath,rangeRect,pie
 	columns = int(math.ceil(rangeRect[2]/pieceSize));
 	rows = int(math.ceil(rangeRect[3]/pieceSize));
 	pieceDetailFile(outputPath,rangeWidth,rangeHeight,pieceSize,rows,columns);
+	total = rows*columns;
+	def progressShow(current,timeCost):
+		bar_length = 30;
+		percent = (float(current)/total);
+		hashes = '*' * int(percent * bar_length);
+		spaces = ' ' * (bar_length - len(hashes));
+		sys.stdout.write("\rPercent: [%s] %d%% Processing %d/%d time used %ds"%(hashes+spaces,percent*100,current,total,timeCost));
+		sys.stdout.flush();
+		return percent;
+	progressShow(0,0);
 	for y in range(0,rows):
 		for x in range(0,columns):
 			width = height = pieceSize;
@@ -112,8 +123,10 @@ def outputImageByRange(slide,level,channel,outputFormat,outputPath,rangeRect,pie
 			y_1 = startY+y*pieceSize;
 			targetImage = slide.read_region((x_1,y_1),level, (width,height),channel);
 			cv.imwrite(os.path.join(outputPath,'_c%d_lv_%d_row_%d_clo_%d%s'%(channel,level,y,x,outputFormat)),targetImage);
-			print("Outputing image %d/%d time used %ds"%((y)*rows+(x+1),rows*columns,(time.time()-time0)));
+			percent = progressShow((y)*columns+(x+1),time.time()-time0);
+			# print("Outputing image %d/%d time used %ds"%((y)*columns+(x+1),rows*columns,(time.time()-time0)));
 			del targetImage;
+	
 	return (time.time()-time0);
 
 class pasareWindowHandle(object):
@@ -158,8 +171,6 @@ class pasareWindowHandle(object):
 		self.selectedRegions_ = []; #the (startx,starty,endx,endy)'s set saved the rect des inside
 		self.selectedRects_ = []; #the id set for those rects drawed on the canvas
 		self.canvaLineGroup_ = {}; # for each selected rect on the thumbnil, saves the lines' id which are drawed inside the rect
-		# del self.canvaLineGroup_['Name']; 
-		# self.canvaLineGroup_.clear();
 
 		self.root_.mainloop();
 	###################################################    UI RESPONSE     ########################################################
@@ -338,16 +349,21 @@ class pasareWindowHandle(object):
 				rectArray.append(getRealRectForOutput(resol,temp,self.thumbnailSize_));
 		subfolders = initOutputFolder(outputFolderName,outputType,level,rectArray,pieceSize);
 		outputThumbnail(slide,outputFolderName,channel);
-		print("output folders %s"%(subfolders));
+		print(">>>>>>>>>>>>>>   Output Folders:   >>>>>>>>>>>>>>");
+		for folder in subfolders:
+			print(folder);
+		
 		result = messagebox.askyesno("Tips","PLEASE WAIT UNTILL SUCCESS MESSAGE.Output Folder: %s"%(str(subfolders)));
 		if result == True:
-			print("########################Start Output########################");
+			print("######################## Start Output ########################");
 			timeCost = 0.0;
 			for i in range(len(rectArray)):
+				if len(rectArray)>1:
+					print("\n######################## Process Region %d ########################"%(i+1));
 				rect = rectArray[i];
 				subFolderPath = subfolders[i];
 				timeCost += outputImageByRange(slide,level,channel,outputFormat,subFolderPath,rect,pieceSize);
-			print("#########################End Output#########################");
+			print("\n\n######################### End Output #########################");
 			messagebox.showinfo("Tips",'PROCESS SUCCESS!!!\nUSING TIME %d SECONDS '%(timeCost));
 			
 		self.outPutDirBtn_['state']=tk.NORMAL;
