@@ -107,8 +107,8 @@ def outputImageByRange(slide,level,channel,outputFormat,outputPath,rangeRect,pie
 		bar_length = 30;
 		percent = (float(current)/total);
 		hashes = '*' * int(percent * bar_length);
-		spaces = ' ' * (bar_length - len(hashes));
-		sys.stdout.write("\rPercent: [%s] %d%% Processing %d/%d time used %ds"%(hashes+spaces,percent*100,current,total,timeCost));
+		spaces = '-' * (bar_length - len(hashes));
+		sys.stdout.write("\r[%s] %d%% Processing %d/%d time used %ds"%(hashes+spaces,percent*100,current,total,timeCost));
 		sys.stdout.flush();
 		return percent;
 	progressShow(0,0);
@@ -126,7 +126,8 @@ def outputImageByRange(slide,level,channel,outputFormat,outputPath,rangeRect,pie
 			percent = progressShow((y)*columns+(x+1),time.time()-time0);
 			# print("Outputing image %d/%d time used %ds"%((y)*columns+(x+1),rows*columns,(time.time()-time0)));
 			del targetImage;
-	
+	sys.stdout.write("\r\n");
+	sys.stdout.flush();
 	return (time.time()-time0);
 
 class pasareWindowHandle(object):
@@ -359,11 +360,11 @@ class pasareWindowHandle(object):
 			timeCost = 0.0;
 			for i in range(len(rectArray)):
 				if len(rectArray)>1:
-					print("\n######################## Process Region %d ########################"%(i+1));
+					print("######################## Process Region %d ########################"%(i+1));
 				rect = rectArray[i];
 				subFolderPath = subfolders[i];
 				timeCost += outputImageByRange(slide,level,channel,outputFormat,subFolderPath,rect,pieceSize);
-			print("\n\n######################### End Output #########################");
+			print("######################### End Output #########################");
 			messagebox.showinfo("Tips",'PROCESS SUCCESS!!!\nUSING TIME %d SECONDS '%(timeCost));
 			
 		self.outPutDirBtn_['state']=tk.NORMAL;
