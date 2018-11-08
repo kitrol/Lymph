@@ -126,7 +126,7 @@ def outputImageByRange(slide,level,channel,outputFormat,outputPath,rangeRect,pie
 			percent = progressShow((y)*columns+(x+1),time.time()-time0);
 			# print("Outputing image %d/%d time used %ds"%((y)*columns+(x+1),rows*columns,(time.time()-time0)));
 			del targetImage;
-	sys.stdout.write("\r\n");
+	sys.stdout.write("\r\n");# go back to the start of the next output line
 	sys.stdout.flush();
 	return (time.time()-time0);
 
