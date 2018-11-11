@@ -99,8 +99,8 @@ def outputImageByRange(slide,level,channel,outputFormat,outputPath,rangeRect,pie
 	startY = int(rangeRect[1]);
 	rangeWidth = int(rangeRect[2]);
 	rangeHeight = int(rangeRect[3]);
-	columns = int(math.ceil(rangeRect[2]/pieceSize));
-	rows = int(math.ceil(rangeRect[3]/pieceSize));
+	columns = int(math.ceil(rangeRect[2]/float(pieceSize)));
+	rows = int(math.ceil(rangeRect[3]/float(pieceSize)));
 	pieceDetailFile(outputPath,rangeWidth,rangeHeight,pieceSize,rows,columns);
 	total = rows*columns;
 	def progressShow(current,timeCost):
