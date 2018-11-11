@@ -45,7 +45,7 @@ def getRealRectForOutput(originalResl,thumbnilRect,thumbnilSize):
 	endY   = math.ceil((thumbnilRect[3]/thumbnilSize[1])*originalResl[1]);
 	return (startX,startY,endX-startX,endY-startY);
 
-def initOutputFolder(mainFolderName,outputMode,level,rectArray,pieceSize):
+def initOutputFolder(mainFolderName,outputMode,level,rectArray,channel,pieceSize):
 	Mode = "Range";
 	subfolders = [];
 	if outputMode == "By Piece":
@@ -56,7 +56,7 @@ def initOutputFolder(mainFolderName,outputMode,level,rectArray,pieceSize):
 	# create sub folder for all outputs
 	for rect in rectArray:
 		# rect = (startx starty width height);
-		subFolderName = "%s_lv%d_(%d_%d_%d_%d)_ps_%d"%(Mode,level,rect[0],rect[1],rect[2],rect[3],pieceSize);
+		subFolderName = "%s_lv%d_(%d_%d_%d_%d)_ch_%d_ps_%d"%(Mode,level,rect[0],rect[1],rect[2],rect[3],channel,pieceSize);
 		subFolderName = os.path.join(mainFolderName,subFolderName);
 		subfolders.append(subFolderName);
 		if os.path.exists(subFolderName):
@@ -348,7 +348,7 @@ class pasareWindowHandle(object):
 			for rect in self.selectedRegions_:
 				temp = tuple(eval(rect));
 				rectArray.append(getRealRectForOutput(resol,temp,self.thumbnailSize_));
-		subfolders = initOutputFolder(outputFolderName,outputType,level,rectArray,pieceSize);
+		subfolders = initOutputFolder(outputFolderName,outputType,level,rectArray,channel,pieceSize);
 		outputThumbnail(slide,outputFolderName,channel);
 		print(">>>>>>>>>>>>>>   Output Folders:   >>>>>>>>>>>>>>");
 		for folder in subfolders:
