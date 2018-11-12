@@ -13,6 +13,7 @@ import time
 import platform
 import shutil
 import threading
+import multiprocessing
 
 
 try:
@@ -30,6 +31,14 @@ else:  #Python 3.x
 	from tkinter import ttk
 	import tkinter.filedialog as filedialog
 	import tkinter.messagebox as messagebox
+
+MultiThread = False;
+PROCESS_COUNT = 0;
+LOCK = threading.Lock();
+
+def isMultiThread():
+	global MultiThread;
+	MultiThread = not MultiThread;
 
 def outputModeClassifier(outputSize):
 	threshold = 70000;
@@ -70,7 +79,7 @@ def initOutputFolder(mainFolderName,outputMode,level,rectArray,channel,pieceSize
 
 def pieceDetailFile(outputDir,width,height,pieceSize,rows,columns):
 	file = open(os.path.join(outputDir,"des.txt"), "w+");
-	string = 'width:%d\nheight:%d\npieceSize:%s\rrows:%d\ncolumns:%d'%(width,height,str(pieceSize),rows,columns);
+	string = 'width:%d\nheight:%d\npieceSize:%s\n\rrows:%d\ncolumns:%d'%(width,height,str(pieceSize),rows,columns);
 	file.write(string);
 	file.close();
 
@@ -112,22 +121,54 @@ def outputImageByRange(slide,level,channel,outputFormat,outputPath,rangeRect,pie
 		sys.stdout.flush();
 		return percent;
 	progressShow(0,0);
-	for y in range(0,rows):
-		for x in range(0,columns):
-			width = height = pieceSize;
-			if (x+1)*pieceSize>rangeWidth:
-				width = rangeWidth- x*pieceSize;
-			if (y+1)*pieceSize>rangeHeight:
-				height = rangeHeight- y*pieceSize;
-			x_1 = startX+x*pieceSize;
-			y_1 = startY+y*pieceSize;
-			targetImage = slide.read_region((x_1,y_1),level, (width,height),channel);
-			cv.imwrite(os.path.join(outputPath,'_c%d_lv_%d_row_%d_clo_%d%s'%(channel,level,y,x,outputFormat)),targetImage);
-			percent = progressShow((y)*columns+(x+1),time.time()-time0);
-			# print("Outputing image %d/%d time used %ds"%((y)*columns+(x+1),rows*columns,(time.time()-time0)));
-			del targetImage;
-	sys.stdout.write("\r\n");# go back to the start of the next output line
-	sys.stdout.flush();
+	
+	############################################ Multiprocessing   Test ############################################
+	global MultiThread,PROCESS_COUNT,LOCK;
+	PROCESS_COUNT = 0;
+	if MultiThread:
+		for y in range(0,rows):
+			for x in range(0,columns):
+				width = height = pieceSize;
+				if (x+1)*pieceSize>rangeWidth:
+					width = rangeWidth- x*pieceSize;
+				if (y+1)*pieceSize>rangeHeight:
+					height = rangeHeight- y*pieceSize;
+				x_1 = startX+x*pieceSize;
+				y_1 = startY+y*pieceSize;
+
+				def readAndWrite(writePath,rect,level,channel):
+					targetImage = slide.read_region((rect[0],rect[1]),level, (rect[2],rect[3]),channel);
+					cv.imwrite(writePath,targetImage);
+					del targetImage;
+					LOCK.acquire();
+					global PROCESS_COUNT;
+					PROCESS_COUNT += 1;
+					progressShow(PROCESS_COUNT,time.time()-time0);
+					LOCK.release();
+					
+				path = os.path.join(outputPath,'_c%d_lv_%d_row_%d_clo_%d%s'%(channel,level,y,x,outputFormat));
+				rect = (x_1,y_1,width,height);
+				newThread = threading.Thread(target=readAndWrite,args=(path,rect,level,channel));
+				newThread.setDaemon(True);
+				newThread.start();
+	############################################ Multiprocessing   Test ############################################
+	else:
+		for y in range(0,rows):
+			for x in range(0,columns):
+				width = height = pieceSize;
+				if (x+1)*pieceSize>rangeWidth:
+					width = rangeWidth- x*pieceSize;
+				if (y+1)*pieceSize>rangeHeight:
+					height = rangeHeight- y*pieceSize;
+				x_1 = startX+x*pieceSize;
+				y_1 = startY+y*pieceSize;
+				targetImage = slide.read_region((x_1,y_1),level, (width,height),channel);
+				cv.imwrite(os.path.join(outputPath,'_c%d_lv_%d_row_%d_clo_%d%s'%(channel,level,y,x,outputFormat)),targetImage);
+				percent = progressShow((y)*columns+(x+1),time.time()-time0);
+				# print("Outputing image %d/%d time used %ds"%((y)*columns+(x+1),rows*columns,(time.time()-time0)));
+				del targetImage;
+		sys.stdout.write("\r\n");# go back to the start of the next output line
+		sys.stdout.flush();
 	return (time.time()-time0);
 
 class pasareWindowHandle(object):
@@ -161,7 +202,6 @@ class pasareWindowHandle(object):
 		self.resetBtn_.place(x=480,y=180,anchor=tk.CENTER);
 		self.resetBtn_['state']=tk.DISABLED;
 
-		self.isByPiece_ = False;
 		self.canvaLineArray_ = [];
 		self.thumbnailSize_ = None;
 
@@ -204,9 +244,6 @@ class pasareWindowHandle(object):
 
 	def onRangeItemSelected(self,eventObject):
 		print("onRangeItemSelected "+self.rangeChosen_.get());
-
-	def onIsByPieceCheck(self):
-		self.isByPiece_ = not self.isByPiece_;
 
 	def onAddNewRegion(self):
 		self.IsOnAddMode_ = not self.IsOnAddMode_;
@@ -267,7 +304,7 @@ class pasareWindowHandle(object):
 				self.rangeChosen_['state']=tk.NORMAL;
 				self.startOutputBtn_['state']=tk.DISABLED;
 				self.clearLinesAndRects();
-
+		
 	###################################################    TOUCH EVENT     ########################################################
 	def onClickInThumbnil(self,event):
 		if not self.IsOnAddMode_:
@@ -357,6 +394,7 @@ class pasareWindowHandle(object):
 		result = messagebox.askyesno("Tips","PLEASE WAIT UNTILL SUCCESS MESSAGE.Output Folder: %s"%(str(subfolders)));
 		if result == True:
 			print("######################## Start Output ########################");
+			time0 = time.time();
 			timeCost = 0.0;
 			for i in range(len(rectArray)):
 				if len(rectArray)>1:
@@ -365,6 +403,7 @@ class pasareWindowHandle(object):
 				subFolderPath = subfolders[i];
 				timeCost += outputImageByRange(slide,level,channel,outputFormat,subFolderPath,rect,pieceSize);
 			print("######################### End Output #########################");
+			print("total time used %d"%(time.time()-time0));
 			messagebox.showinfo("Tips",'PROCESS SUCCESS!!!\nUSING TIME %d SECONDS '%(timeCost));
 			
 		self.outPutDirBtn_['state']=tk.NORMAL;
@@ -561,8 +600,12 @@ class pasareWindowHandle(object):
 			self.outputChannleChosen_.place(x=120,y=170,anchor=tk.CENTER);
 
 			self.startOutputBtn_ = tk.Button(self.rootFrame_, text="Output",command=lambda:self.startOutput(slide));
-			self.startOutputBtn_.place(x=235,y=220,anchor=tk.CENTER);
+			self.startOutputBtn_.place(x=260,y=220,anchor=tk.CENTER);
 			self.openFileBtn_['state']=tk.NORMAL;
+
+			self.multiThread_ = Checkbutton(self.rootFrame_,text ='Multi Thread Speed Up?',command=isMultiThread);
+			self.multiThread_.place(x=100,y=220,anchor=tk.CENTER);
+
 			self.resetBtn_['state']=tk.NORMAL;
 			if self.selectRegionMode_:
 				self.startOutputBtn_['state']=tk.DISABLED;
