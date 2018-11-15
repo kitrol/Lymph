@@ -127,12 +127,14 @@ def outputImageByRange(slide,level,channel,outputFormat,outputPath,rangeRect,pie
 	processCounter = multiprocessing.Value("i",0);
 	lock = multiprocessing.Lock();
 	if MultiThread:
-		def readAndWrite(slide,writePath,rect,level,channel,counter):
+		def readAndWrite(slide,writePath,rect,level,channel,counter,processLock):
+			processLock.acquire();
 			targetImage = slide.read_region((rect[0],rect[1]),level, (rect[2],rect[3]),channel);
 			cv.imwrite(writePath,targetImage);
 			del targetImage;
 			counter += 1;
 			progressShow(counter,time.time()-time0);
+			processLock.release();
 		# def readAndWrite(slide,writePath,rect,level,channel):
 			# 	targetImage = slide.read_region((rect[0],rect[1]),level, (rect[2],rect[3]),channel);
 			# 	cv.imwrite(writePath,targetImage);
@@ -154,7 +156,7 @@ def outputImageByRange(slide,level,channel,outputFormat,outputPath,rangeRect,pie
 	
 				path = os.path.join(outputPath,'_c%d_lv_%d_row_%d_clo_%d%s'%(channel,level,y,x,outputFormat));
 				rect = (x_1,y_1,width,height);
-				p = multiprocessing.Process(target=readAndWrite, args=(slide,path,rect,level,channel,processCounter,));
+				p = multiprocessing.Process(target=readAndWrite, args=(slide,path,rect,level,channel,processCounter,lock));
 				p.start();
 				p.join();
 				print("p.pid:", p.pid);
@@ -188,7 +190,7 @@ def outputImageByRange(slide,level,channel,outputFormat,outputPath,rangeRect,pie
 	if MultiThread:
 		while processCounter<total:
 			time.sleep(0.5);
-			
+
 	return (time.time()-time0);
 
 class pasareWindowHandle(object):
