@@ -123,9 +123,25 @@ def outputImageByRange(slide,level,channel,outputFormat,outputPath,rangeRect,pie
 	progressShow(0,0);
 	
 	############################################ Multiprocessing   Test ############################################
-	global MultiThread,PROCESS_COUNT,LOCK;
-	PROCESS_COUNT = 0;
+	global MultiThread,LOCK;
+	processCounter = multiprocessing.Value("i",0);
+	lock = multiprocessing.Lock();
 	if MultiThread:
+		def readAndWrite(slide,writePath,rect,level,channel,counter):
+			targetImage = slide.read_region((rect[0],rect[1]),level, (rect[2],rect[3]),channel);
+			cv.imwrite(writePath,targetImage);
+			del targetImage;
+			counter += 1;
+			progressShow(counter,time.time()-time0);
+		# def readAndWrite(slide,writePath,rect,level,channel):
+			# 	targetImage = slide.read_region((rect[0],rect[1]),level, (rect[2],rect[3]),channel);
+			# 	cv.imwrite(writePath,targetImage);
+			# 	del targetImage;
+			# 	LOCK.acquire();
+			# 	global PROCESS_COUNT;
+			# 	PROCESS_COUNT += 1;
+			# 	progressShow(PROCESS_COUNT,time.time()-time0);
+			# 	LOCK.release();			
 		for y in range(0,rows):
 			for x in range(0,columns):
 				width = height = pieceSize;
@@ -135,22 +151,22 @@ def outputImageByRange(slide,level,channel,outputFormat,outputPath,rangeRect,pie
 					height = rangeHeight- y*pieceSize;
 				x_1 = startX+x*pieceSize;
 				y_1 = startY+y*pieceSize;
-
-				def readAndWrite(writePath,rect,level,channel):
-					targetImage = slide.read_region((rect[0],rect[1]),level, (rect[2],rect[3]),channel);
-					cv.imwrite(writePath,targetImage);
-					del targetImage;
-					LOCK.acquire();
-					global PROCESS_COUNT;
-					PROCESS_COUNT += 1;
-					progressShow(PROCESS_COUNT,time.time()-time0);
-					LOCK.release();
-					
+	
 				path = os.path.join(outputPath,'_c%d_lv_%d_row_%d_clo_%d%s'%(channel,level,y,x,outputFormat));
 				rect = (x_1,y_1,width,height);
-				newThread = threading.Thread(target=readAndWrite,args=(path,rect,level,channel));
-				newThread.setDaemon(True);
-				newThread.start();
+				p = multiprocessing.Process(target=readAndWrite, args=(slide,path,rect,level,channel,processCounter,));
+				p.start();
+				p.join();
+				print("p.pid:", p.pid);
+				# print("p.name:", p.name);
+				# print("p.is_alive:", p.is_alive());
+
+				# path = os.path.join(outputPath,'_c%d_lv_%d_row_%d_clo_%d%s'%(channel,level,y,x,outputFormat));
+				# rect = (x_1,y_1,width,height);
+				# newThread = threading.Thread(target=readAndWrite,args=(slide,path,rect,level,channel));
+				# newThread.setDaemon(True);
+				# newThread.start();
+
 	############################################ Multiprocessing   Test ############################################
 	else:
 		for y in range(0,rows):
@@ -169,6 +185,10 @@ def outputImageByRange(slide,level,channel,outputFormat,outputPath,rangeRect,pie
 				del targetImage;
 		sys.stdout.write("\r\n");# go back to the start of the next output line
 		sys.stdout.flush();
+	if MultiThread:
+		while processCounter<total:
+			time.sleep(0.5);
+			
 	return (time.time()-time0);
 
 class pasareWindowHandle(object):
