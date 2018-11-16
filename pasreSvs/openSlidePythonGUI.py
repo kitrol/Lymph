@@ -33,13 +33,17 @@ else:  #Python 3.x
 	import tkinter.messagebox as messagebox
 
 MultiThread = False;
+MultiProcess = False;
 PROCESS_COUNT = 0;
 LOCK = threading.Lock();
+CURRENT_FILE_NAME = None
 
 def isMultiThread():
 	global MultiThread;
 	MultiThread = not MultiThread;
-
+def isMultiProcess():
+	global MultiProcess;
+	MultiProcess = not MultiProcess;
 def outputModeClassifier(outputSize):
 	threshold = 70000;
 	if (outputSize[0] > threshold) or (outputSize[1] > threshold):
@@ -100,6 +104,29 @@ def outputThumbnail(slide,outputDir,channel):
 		level = len(slide.level_dimensions)-1;
 	outputThumbnail = slide.read_region((0,0),level, targetRes,channel);
 	cv.imwrite(os.path.join(outputDir,'Thumbnail_ch%d.png'%(channel)),outputThumbnail);
+def progressShow(current,timeCost,total):
+	bar_length = 30;
+	percent = (float(current)/total);
+	hashes = '*' * int(percent * bar_length);
+	spaces = '-' * (bar_length - len(hashes));
+	sys.stdout.write("\r[%s] %d%% Processing %d/%d time used %ds"%(hashes+spaces,percent*100,current,total,timeCost));
+	sys.stdout.flush();
+	return percent;
+
+def readAndWrite(fileName,rectAndPathArray,level,channel,counter,processLock,total):
+	time0 = time.time();
+	slide = openslide.OpenSlide(fileName);
+	for item in rectAndPathArray:
+		rect = item[0];
+		path = item[1];
+		targetImage = slide.read_region((rect[0],rect[1]),level, (rect[2],rect[3]),channel);
+		cv.imwrite(path,targetImage);
+		del targetImage;
+		processLock.acquire();
+		counter.value += 1;
+		progressShow(counter.value,time.time()-time0,total);
+		processLock.release();
+	
 
 def outputImageByRange(slide,level,channel,outputFormat,outputPath,rangeRect,pieceSize=0):
 	# rangeRect:[startX startY width height]
@@ -112,38 +139,18 @@ def outputImageByRange(slide,level,channel,outputFormat,outputPath,rangeRect,pie
 	rows = int(math.ceil(rangeRect[3]/float(pieceSize)));
 	pieceDetailFile(outputPath,rangeWidth,rangeHeight,pieceSize,rows,columns);
 	total = rows*columns;
-	def progressShow(current,timeCost):
-		bar_length = 30;
-		percent = (float(current)/total);
-		hashes = '*' * int(percent * bar_length);
-		spaces = '-' * (bar_length - len(hashes));
-		sys.stdout.write("\r[%s] %d%% Processing %d/%d time used %ds"%(hashes+spaces,percent*100,current,total,timeCost));
-		sys.stdout.flush();
-		return percent;
-	progressShow(0,0);
-	
+
 	############################################ Multiprocessing   Test ############################################
-	global MultiThread,LOCK;
-	processCounter = multiprocessing.Value("i",0);
-	lock = multiprocessing.Lock();
-	if MultiThread:
-		def readAndWrite(slide,writePath,rect,level,channel,counter,processLock):
-			processLock.acquire();
-			targetImage = slide.read_region((rect[0],rect[1]),level, (rect[2],rect[3]),channel);
-			cv.imwrite(writePath,targetImage);
-			del targetImage;
-			counter += 1;
-			progressShow(counter,time.time()-time0);
-			processLock.release();
-		# def readAndWrite(slide,writePath,rect,level,channel):
-			# 	targetImage = slide.read_region((rect[0],rect[1]),level, (rect[2],rect[3]),channel);
-			# 	cv.imwrite(writePath,targetImage);
-			# 	del targetImage;
-			# 	LOCK.acquire();
-			# 	global PROCESS_COUNT;
-			# 	PROCESS_COUNT += 1;
-			# 	progressShow(PROCESS_COUNT,time.time()-time0);
-			# 	LOCK.release();			
+	global MultiThread,CURRENT_FILE_NAME,MultiProcess;
+	if MultiProcess:
+		print("###################### Mode MultiProcess ######################");
+		progressShow(0,0,total);
+		processCounter = multiprocessing.Value("i",0);
+		lock = multiprocessing.Lock();
+		rectGroup = [];
+		maxProgressCnt = 2;
+		for x in range(maxProgressCnt):
+			rectGroup.append([]);
 		for y in range(0,rows):
 			for x in range(0,columns):
 				width = height = pieceSize;
@@ -153,24 +160,46 @@ def outputImageByRange(slide,level,channel,outputFormat,outputPath,rangeRect,pie
 					height = rangeHeight- y*pieceSize;
 				x_1 = startX+x*pieceSize;
 				y_1 = startY+y*pieceSize;
-	
+				index = (y)*columns+(x+1);
+				rect = (x_1,y_1,width,height);
+				path = os.path.join(outputPath,'_c%d_lv_%d_row_%d_clo_%d%s'%(channel,level,y,x,outputFormat));
+				rectGroup[(index-1)%(maxProgressCnt)].append([rect,path]);
+		for rectsArray in rectGroup:
+			p = multiprocessing.Process(target=readAndWrite, args=(CURRENT_FILE_NAME,rectsArray,level,channel,processCounter,lock,total,));
+			p.start();
+				
+	############################################ MultiThread   Test ############################################			
+	elif MultiThread:
+		print("###################### Mode MultiThread ######################");
+		progressShow(0,0,total);
+		LOCK = threading.Lock();
+		def readAndWriteLocal(slide,writePath,rect,level,channel,lock):
+				targetImage = slide.read_region((rect[0],rect[1]),level, (rect[2],rect[3]),channel);
+				cv.imwrite(writePath,targetImage);
+				del targetImage;
+				global PROCESS_COUNT;
+				lock.acquire();
+				PROCESS_COUNT += 1;
+				progressShow(PROCESS_COUNT,time.time()-time0,total);
+				lock.release();
+		for y in range(0,rows):
+			for x in range(0,columns):
+				width = height = pieceSize;
+				if (x+1)*pieceSize>rangeWidth:
+					width = rangeWidth- x*pieceSize;
+				if (y+1)*pieceSize>rangeHeight:
+					height = rangeHeight- y*pieceSize;
+				x_1 = startX+x*pieceSize;
+				y_1 = startY+y*pieceSize;
 				path = os.path.join(outputPath,'_c%d_lv_%d_row_%d_clo_%d%s'%(channel,level,y,x,outputFormat));
 				rect = (x_1,y_1,width,height);
-				p = multiprocessing.Process(target=readAndWrite, args=(slide,path,rect,level,channel,processCounter,lock));
-				p.start();
-				p.join();
-				print("p.pid:", p.pid);
-				# print("p.name:", p.name);
-				# print("p.is_alive:", p.is_alive());
-
-				# path = os.path.join(outputPath,'_c%d_lv_%d_row_%d_clo_%d%s'%(channel,level,y,x,outputFormat));
-				# rect = (x_1,y_1,width,height);
-				# newThread = threading.Thread(target=readAndWrite,args=(slide,path,rect,level,channel));
-				# newThread.setDaemon(True);
-				# newThread.start();
-
-	############################################ Multiprocessing   Test ############################################
+				newThread = threading.Thread(target=readAndWriteLocal,args=(slide,path,rect,level,channel,LOCK,));
+				newThread.setDaemon(True);
+				newThread.start();
+	############################################ Multiprocessing   Over ############################################
 	else:
+		print("###################### Mode Normal ######################");
+		progressShow(0,0,total);
 		for y in range(0,rows):
 			for x in range(0,columns):
 				width = height = pieceSize;
@@ -180,17 +209,23 @@ def outputImageByRange(slide,level,channel,outputFormat,outputPath,rangeRect,pie
 					height = rangeHeight- y*pieceSize;
 				x_1 = startX+x*pieceSize;
 				y_1 = startY+y*pieceSize;
+				# print("x_1 %d y_1 %d width %d height %d"%(x_1,y_1,width,height));
 				targetImage = slide.read_region((x_1,y_1),level, (width,height),channel);
 				cv.imwrite(os.path.join(outputPath,'_c%d_lv_%d_row_%d_clo_%d%s'%(channel,level,y,x,outputFormat)),targetImage);
-				percent = progressShow((y)*columns+(x+1),time.time()-time0);
+				percent = progressShow((y)*columns+(x+1),time.time()-time0,total);
 				# print("Outputing image %d/%d time used %ds"%((y)*columns+(x+1),rows*columns,(time.time()-time0)));
 				del targetImage;
-		sys.stdout.write("\r\n");# go back to the start of the next output line
-		sys.stdout.flush();
+	
 	if MultiThread:
-		while processCounter<total:
+		
+		while PROCESS_COUNT < total:
 			time.sleep(0.5);
-
+	if MultiProcess:
+		
+		while processCounter.value < total:
+			time.sleep(0.5);
+	sys.stdout.write("\r\n");# go back to the start of the next output line
+	sys.stdout.flush();
 	return (time.time()-time0);
 
 class pasareWindowHandle(object):
@@ -525,6 +560,8 @@ class pasareWindowHandle(object):
 		
 		if filePrex.lower() == 'tiff' or filePrex.lower() == 'svs':
 			slide = openslide.OpenSlide(fileName);
+			global CURRENT_FILE_NAME;
+			CURRENT_FILE_NAME = fileName;
 			
 			bestResolution = slide.level_dimensions[0];
 			self.canvasWidth_ = 300.0;
@@ -625,8 +662,11 @@ class pasareWindowHandle(object):
 			self.startOutputBtn_.place(x=260,y=220,anchor=tk.CENTER);
 			self.openFileBtn_['state']=tk.NORMAL;
 
+			self.multiProcess_ = Checkbutton(self.rootFrame_,text ='Multi Process Speed Up?',command=isMultiProcess);
+			self.multiProcess_.place(x=100,y=220,anchor=tk.CENTER);
+
 			self.multiThread_ = Checkbutton(self.rootFrame_,text ='Multi Thread Speed Up?',command=isMultiThread);
-			self.multiThread_.place(x=100,y=220,anchor=tk.CENTER);
+			self.multiThread_.place(x=100,y=240,anchor=tk.CENTER);
 
 			self.resetBtn_['state']=tk.NORMAL;
 			if self.selectRegionMode_:
@@ -635,7 +675,6 @@ class pasareWindowHandle(object):
 			messagebox.showinfo('SUPPORT .svs FILE AND .tiff FILE ONLY');
 			self.openFileBtn_['state']=tk.NORMAL;
 			return False;
-
-newWindow = pasareWindowHandle();
-
-
+if __name__ == "__main__":
+	print("cpu_count is %d "%(multiprocessing.cpu_count()));
+	newWindow = pasareWindowHandle();
