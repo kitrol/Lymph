@@ -154,7 +154,7 @@ def outputImageByRange(slide,level,channel,outputFormat,outputPath,rangeRect,pie
 		processCounter = multiprocessing.Value("i",0);
 		lock = multiprocessing.Lock();
 		rectGroup = [];
-		maxProgressCnt = CORES;;
+		maxProgressCnt = CORES;
 		for x in range(maxProgressCnt):
 			rectGroup.append([]);
 		for y in range(0,rows):
@@ -372,7 +372,7 @@ class pasareWindowHandle(object):
 				self.clearLinesAndRects();
 	def onChangeProcess(self,cores):
 		global CORES;
-		CORES = int(eventObject);
+		CORES = int(cores);
 	###################################################    TOUCH EVENT     ########################################################
 	def onClickInThumbnil(self,event):
 		if not self.IsOnAddMode_:
@@ -671,10 +671,13 @@ class pasareWindowHandle(object):
 			self.multiProcess_ = Checkbutton(self.rootFrame_,text ='Multi Cores?',command=isMultiProcess);
 			self.multiProcess_.place(x=30,y=210,anchor=tk.W);
 
-			scale = tk.Scale(self.rootFrame_, 
+			length = (multiprocessing.cpu_count()-2)*30;
+			if length > 100:
+				length = 100;
+			scale = tk.Scale(self.rootFrame_,
 							 from_=1, 
 							 to=multiprocessing.cpu_count()-2,
-							 length=(multiprocessing.cpu_count()-2)*30, 
+							 length=length, 
 							 orient=tk.HORIZONTAL,
 							 command=self.onChangeProcess);
 			scale.set(2); # 设置初始值
