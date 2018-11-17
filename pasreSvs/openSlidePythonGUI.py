@@ -139,7 +139,12 @@ def outputImageByRange(slide,level,channel,outputFormat,outputPath,rangeRect,pie
 	rows = int(math.ceil(rangeRect[3]/float(pieceSize)));
 	pieceDetailFile(outputPath,rangeWidth,rangeHeight,pieceSize,rows,columns);
 	total = rows*columns;
-
+	bestSize = slide.level_dimensions[0];
+	targetSize = slide.level_dimensions[level];
+	def getStartPos(bestReso,targetReso,relativeX,relativeY):
+		real_x = int((relativeX/targetReso[0])*bestReso[0]);
+		real_y = int((relativeY/targetReso[1])*bestReso[1]);
+		return (real_x,real_y);
 	############################################ Multiprocessing   Test ############################################
 	global MultiThread,CURRENT_FILE_NAME,MultiProcess;
 	if MultiProcess:
@@ -160,8 +165,9 @@ def outputImageByRange(slide,level,channel,outputFormat,outputPath,rangeRect,pie
 					height = rangeHeight- y*pieceSize;
 				x_1 = startX+x*pieceSize;
 				y_1 = startY+y*pieceSize;
+				realPos = getStartPos(bestSize,targetSize,x_1,y_1);
 				index = (y)*columns+(x+1);
-				rect = (x_1,y_1,width,height);
+				rect = (realPos[0],realPos[1],width,height);
 				path = os.path.join(outputPath,'_c%d_lv_%d_row_%d_clo_%d%s'%(channel,level,y,x,outputFormat));
 				rectGroup[(index-1)%(maxProgressCnt)].append([rect,path]);
 		for rectsArray in rectGroup:
@@ -191,8 +197,9 @@ def outputImageByRange(slide,level,channel,outputFormat,outputPath,rangeRect,pie
 					height = rangeHeight- y*pieceSize;
 				x_1 = startX+x*pieceSize;
 				y_1 = startY+y*pieceSize;
+				realPos = getStartPos(bestSize,targetSize,x_1,y_1);
 				path = os.path.join(outputPath,'_c%d_lv_%d_row_%d_clo_%d%s'%(channel,level,y,x,outputFormat));
-				rect = (x_1,y_1,width,height);
+				rect = (realPos[0],realPos[1],width,height);
 				newThread = threading.Thread(target=readAndWriteLocal,args=(slide,path,rect,level,channel,LOCK,));
 				newThread.setDaemon(True);
 				newThread.start();
@@ -209,8 +216,9 @@ def outputImageByRange(slide,level,channel,outputFormat,outputPath,rangeRect,pie
 					height = rangeHeight- y*pieceSize;
 				x_1 = startX+x*pieceSize;
 				y_1 = startY+y*pieceSize;
+				realPos = getStartPos(bestSize,targetSize,x_1,y_1);
 				# print("x_1 %d y_1 %d width %d height %d"%(x_1,y_1,width,height));
-				targetImage = slide.read_region((x_1,y_1),level, (width,height),channel);
+				targetImage = slide.read_region((realPos[0],realPos[1]),level, (width,height),channel);
 				cv.imwrite(os.path.join(outputPath,'_c%d_lv_%d_row_%d_clo_%d%s'%(channel,level,y,x,outputFormat)),targetImage);
 				percent = progressShow((y)*columns+(x+1),time.time()-time0,total);
 				# print("Outputing image %d/%d time used %ds"%((y)*columns+(x+1),rows*columns,(time.time()-time0)));
@@ -667,7 +675,6 @@ class pasareWindowHandle(object):
 
 			self.multiThread_ = Checkbutton(self.rootFrame_,text ='Multi Thread Speed Up?',command=isMultiThread);
 			self.multiThread_.place(x=100,y=240,anchor=tk.CENTER);
-
 			self.resetBtn_['state']=tk.NORMAL;
 			if self.selectRegionMode_:
 				self.startOutputBtn_['state']=tk.DISABLED;
