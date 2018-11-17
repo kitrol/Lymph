@@ -35,6 +35,7 @@ else:  #Python 3.x
 MultiThread = False;
 MultiProcess = False;
 PROCESS_COUNT = 0;
+CORES = 1;
 LOCK = threading.Lock();
 CURRENT_FILE_NAME = None
 
@@ -146,14 +147,14 @@ def outputImageByRange(slide,level,channel,outputFormat,outputPath,rangeRect,pie
 		real_y = int((relativeY/targetReso[1])*bestReso[1]);
 		return (real_x,real_y);
 	############################################ Multiprocessing   Test ############################################
-	global MultiThread,CURRENT_FILE_NAME,MultiProcess;
+	global MultiThread,CURRENT_FILE_NAME,MultiProcess,CORES;
 	if MultiProcess:
 		print("###################### Mode MultiProcess ######################");
 		progressShow(0,0,total);
 		processCounter = multiprocessing.Value("i",0);
 		lock = multiprocessing.Lock();
 		rectGroup = [];
-		maxProgressCnt = 2;
+		maxProgressCnt = CORES;;
 		for x in range(maxProgressCnt):
 			rectGroup.append([]);
 		for y in range(0,rows):
@@ -369,7 +370,9 @@ class pasareWindowHandle(object):
 				self.rangeChosen_['state']=tk.NORMAL;
 				self.startOutputBtn_['state']=tk.DISABLED;
 				self.clearLinesAndRects();
-		
+	def onChangeProcess(self,cores):
+		global CORES;
+		CORES = int(eventObject);
 	###################################################    TOUCH EVENT     ########################################################
 	def onClickInThumbnil(self,event):
 		if not self.IsOnAddMode_:
@@ -455,7 +458,6 @@ class pasareWindowHandle(object):
 		print(">>>>>>>>>>>>>>   Output Folders:   >>>>>>>>>>>>>>");
 		for folder in subfolders:
 			print(folder);
-		
 		result = messagebox.askyesno("Tips","PLEASE WAIT UNTILL SUCCESS MESSAGE.Output Folder: %s"%(str(subfolders)));
 		if result == True:
 			print("######################## Start Output ########################");
@@ -666,16 +668,26 @@ class pasareWindowHandle(object):
 			self.outputChannleChosen_.current(1);
 			self.outputChannleChosen_.place(x=120,y=170,anchor=tk.CENTER);
 
+			self.multiProcess_ = Checkbutton(self.rootFrame_,text ='Multi Cores?',command=isMultiProcess);
+			self.multiProcess_.place(x=30,y=210,anchor=tk.W);
+
+			scale = tk.Scale(self.rootFrame_, 
+							 from_=1, 
+							 to=multiprocessing.cpu_count()-2,
+							 length=(multiprocessing.cpu_count()-2)*30, 
+							 orient=tk.HORIZONTAL,
+							 command=self.onChangeProcess);
+			scale.set(2); # 设置初始值
+			scale.place(x=140,y=204,anchor=tk.W);
+
+			self.multiThread_ = Checkbutton(self.rootFrame_,text ='Multi Threads',command=isMultiThread);
+			self.multiThread_.place(x=30,y=230,anchor=tk.W);
+			self.resetBtn_['state']=tk.NORMAL;
+
 			self.startOutputBtn_ = tk.Button(self.rootFrame_, text="Output",command=lambda:self.startOutput(slide));
-			self.startOutputBtn_.place(x=260,y=220,anchor=tk.CENTER);
+			self.startOutputBtn_.place(x=350,y=220,anchor=tk.CENTER);
 			self.openFileBtn_['state']=tk.NORMAL;
 
-			self.multiProcess_ = Checkbutton(self.rootFrame_,text ='Multi Process Speed Up?',command=isMultiProcess);
-			self.multiProcess_.place(x=100,y=220,anchor=tk.CENTER);
-
-			self.multiThread_ = Checkbutton(self.rootFrame_,text ='Multi Thread Speed Up?',command=isMultiThread);
-			self.multiThread_.place(x=100,y=240,anchor=tk.CENTER);
-			self.resetBtn_['state']=tk.NORMAL;
 			if self.selectRegionMode_:
 				self.startOutputBtn_['state']=tk.DISABLED;
 		else:
@@ -683,5 +695,5 @@ class pasareWindowHandle(object):
 			self.openFileBtn_['state']=tk.NORMAL;
 			return False;
 if __name__ == "__main__":
-	print("cpu_count is %d "%(multiprocessing.cpu_count()));
+	# print("cpu_count is %d "%(multiprocessing.cpu_count()));
 	newWindow = pasareWindowHandle();
