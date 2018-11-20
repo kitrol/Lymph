@@ -339,7 +339,10 @@ class pasareWindowHandle(object):
 				self.rangeChosen_.current(len(self.selectedRegions_)-1);
 			else:
 				self.newRegion_="";
-				self.redoBtn_['state'] = tk.DISABLED
+				self.rangeChosen_.set('');
+				self.selectedRegions_
+				self.redoBtn_['state'] = tk.DISABLED;
+				self.startOutputBtn_['state']=tk.DISABLED;
 	def onChangeOutputType(self,eventObject):
 		if self.selectRegionMode_:
 			if self.outputType_.get() == "By Range":
@@ -472,6 +475,11 @@ class pasareWindowHandle(object):
 			print("######################### End Output #########################");
 			print("total time used %d"%(time.time()-time0));
 			messagebox.showinfo("Tips",'PROCESS SUCCESS!!!\nUSING TIME %d SECONDS '%(timeCost));
+		else:
+			# delete subfolders
+			for folder in subfolders:
+				os.rmdir(folder);
+			
 			
 		self.outPutDirBtn_['state']=tk.NORMAL;
 		self.openFileBtn_['state']=tk.NORMAL;
@@ -564,7 +572,7 @@ class pasareWindowHandle(object):
 	def startAnalyze(self):
 		self.openFileBtn_['state']=tk.DISABLED;
 		self.startAnalyzeBtn_['state']=tk.DISABLED;
-
+		self.clearLinesAndRects();
 		fileName = self.openFileNameStr_.get();
 		filePrex = fileName.split('.')[1];
 		
