@@ -143,8 +143,8 @@ def outputImageByRange(slide,level,channel,outputFormat,outputPath,rangeRect,pie
 	bestSize = slide.level_dimensions[0];
 	targetSize = slide.level_dimensions[level];
 	def getStartPos(bestReso,targetReso,relativeX,relativeY):
-		real_x = int((relativeX/targetReso[0])*bestReso[0]);
-		real_y = int((relativeY/targetReso[1])*bestReso[1]);
+		real_x = int((float(relativeX)/targetReso[0])*bestReso[0]);
+		real_y = int((float(relativeY)/targetReso[1])*bestReso[1]);
 		return (real_x,real_y);
 	############################################ Multiprocessing   Test ############################################
 	global MultiThread,CURRENT_FILE_NAME,MultiProcess,CORES;
