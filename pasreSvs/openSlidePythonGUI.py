@@ -556,7 +556,7 @@ class pasareWindowHandle(object):
 
 		columns = int(math.floor(int(targetRect[2]-targetRect[0])/offset));
 		rows = int(math.floor(int(targetRect[3]-targetRect[1])/offset));
-		if hasattr(self.canvaLineGroup_,str(targetRect)) and len(self.canvaLineGroup_[str(targetRect)]) > 0:
+		if (str(targetRect) in self.canvaLineGroup_) and len(self.canvaLineGroup_[str(targetRect)]) > 0:
 			for itemId in self.canvaLineGroup_[str(targetRect)]:
 				self.canvas_.delete(itemId);
 		else:
