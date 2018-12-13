@@ -46,7 +46,8 @@ def isMultiProcess():
 	global MultiProcess;
 	MultiProcess = not MultiProcess;
 def outputModeClassifier(outputSize):
-	threshold = 70000;
+	# threshold = 70000;
+	threshold = 1;
 	if (outputSize[0] > threshold) or (outputSize[1] > threshold):
 		return "RangeMode";
 	else:
