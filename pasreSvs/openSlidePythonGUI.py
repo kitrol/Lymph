@@ -575,9 +575,11 @@ class pasareWindowHandle(object):
 		self.startAnalyzeBtn_['state']=tk.DISABLED;
 		self.clearLinesAndRects();
 		fileName = self.openFileNameStr_.get();
-		filePrex = fileName.split('.')[1];
-		
-		if filePrex.lower() == 'tiff' or filePrex.lower() == 'svs':
+		# filePrex = fileName.split('.')[1];
+		# print("result is %s"%(result));
+		# if filePrex.lower() == 'tiff' or filePrex.lower() == 'svs':
+		checkResult = openslide.OpenSlide.detect_format(fileName);
+		if checkResult != None:
 			slide = openslide.OpenSlide(fileName);
 			global CURRENT_FILE_NAME;
 			CURRENT_FILE_NAME = fileName;
@@ -656,7 +658,7 @@ class pasareWindowHandle(object):
 			pieceSizeLabel.place(x=350,y=80,anchor=tk.CENTER);
 			self.pieceSize_ = tk.StringVar();
 			self.pieceSizeChosen_ = ttk.Combobox(self.rootFrame_, width=20, textvariable=self.pieceSize_, state="readonly");
-			self.pieceSizeChosen_["values"] = ("1000","3000","5000","10000");
+			self.pieceSizeChosen_["values"] = ("1000","3000","5000","10000","20000");
 			self.pieceSizeChosen_.current(3);
 			self.pieceSizeChosen_.place(x=350,y=110,anchor=tk.CENTER);
 			self.pieceSizeChosen_.bind("<<ComboboxSelected>>",self.onSizeChange);
@@ -703,7 +705,7 @@ class pasareWindowHandle(object):
 			if self.selectRegionMode_:
 				self.startOutputBtn_['state']=tk.DISABLED;
 		else:
-			messagebox.showinfo('SUPPORT .svs FILE AND .tiff FILE ONLY');
+			messagebox.showinfo(title='FORMAT ERROR',message='File Format Not Supported By Now');
 			self.openFileBtn_['state']=tk.NORMAL;
 			return False;
 if __name__ == "__main__":
