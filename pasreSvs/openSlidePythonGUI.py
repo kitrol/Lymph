@@ -170,7 +170,8 @@ def outputImageByRange(slide,level,channel,outputFormat,outputPath,rangeRect,pie
 				realPos = getStartPos(bestSize,targetSize,x_1,y_1);
 				index = (y)*columns+(x+1);
 				rect = (realPos[0],realPos[1],width,height);
-				path = os.path.join(outputPath,'_c%d_lv_%d_row_%d_clo_%d%s'%(channel,level,y,x,outputFormat));
+				slideName = os.path.basename(CURRENT_FILE_NAME).split('.')[0];
+				path = os.path.join(outputPath,'%s_c%d_lv_%d_row_%d_clo_%d%s'%(slideName,channel,level,y,x,outputFormat));
 				rectGroup[(index-1)%(maxProgressCnt)].append([rect,path]);
 		for rectsArray in rectGroup:
 			p = multiprocessing.Process(target=readAndWrite, args=(CURRENT_FILE_NAME,rectsArray,level,channel,processCounter,lock,total,));
