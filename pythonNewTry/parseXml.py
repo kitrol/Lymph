@@ -52,12 +52,19 @@ def readRegionsFromXml(xmlFileName):
 	return rects;
 
 def main(argv):
-	xmlFileName = argv[1];
+	if len(argv) < 4:
+		usage="Usage: \n 3 Parameters are needed:\n 1st is the svs file;\n 2nd is the xml file;\n 3rd is the output folder. "
+		print(usage);
+		return False;
+	svsFileName = argv[1];
+	xmlFileName = argv[2];
+	outputFolderPath = argv[3];
+	svsBaseName = os.path.basename(svsFileName).split('.')[0];
 	targetRects = readRegionsFromXml(xmlFileName);
-	slide = openslide.OpenSlide(argv[2]);
+	slide = openslide.OpenSlide(svsFileName);
 	for rect in targetRects:
 		targetImage = slide.read_region((rect[0],rect[1]),0, (rect[2],rect[3]),3);
-		path = os.path.join("D:\Lymph_Follicle",str(rect)+".png");
+		path = os.path.join(outputFolderPath,svsBaseName+"_"+str(rect)+".png");
 		cv.imwrite(path,targetImage);
 	
 if __name__ == '__main__':
