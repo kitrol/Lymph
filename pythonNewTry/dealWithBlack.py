@@ -16,7 +16,7 @@ def main(argv):
 	baseName = fileName.split('.')[0];
 	maskImage = np.zeros((shape[0],shape[1]),dtype=np.uint8);
 	maskImage[::] = 255;
-	index = np.where(np.average(sourceImage,axis=2)<=90);
+	index = np.where(np.average(sourceImage,axis=2)<=100);
 	sourceImage[index] = [0,0,0];
 	maskImage[index] = 0;
 
