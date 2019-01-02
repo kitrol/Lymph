@@ -4,14 +4,6 @@
 import sys
 import cv2 as cv
 import numpy as np
-def progress_test():
-    bar_length=20
-    for percent in range(0, 100):
-        hashes = '#' * int(percent/100.0 * bar_length)
-        spaces = ' ' * (bar_length - len(hashes))
-        sys.stdout.write("\rPercent: [%s] %d%%"%(hashes + spaces, percent))
-        sys.stdout.flush()
-        time.sleep(1)
 
 def main(argv):
 	if len(argv) < 2:
@@ -19,21 +11,33 @@ def main(argv):
 		print(usage);
 		return False;
 	fileName = argv[1]; 
-	targetImage = cv.imread(fileName);
+	sourceImage = cv.imread(fileName);
+	shape = sourceImage.shape;
 	baseName = fileName.split('.')[0];
-	# print(targetImage.shape);
-	# print(baseName);
-	shape = targetImage.shape;
-	for x in range(0,shape[0]):
-		if x%100 == 0:
-			sys.stdout.write("\r%d"%(x));
-			sys.stdout.flush();
-		for y in range(0,shape[1]):
-			color = targetImage[x,y];
-			# print(np.average(color));
-			if np.average(color)<=100:
-				targetImage[x,y] = [0,0,0];
-	cv.imwrite(baseName+'_black.png',targetImage);
+	maskImage = np.zeros((shape[0],shape[1]),dtype=np.uint8);
+	maskImage[::] = 255;
+	index = np.where(np.average(sourceImage,axis=2)<=90);
+	sourceImage[index] = [0,0,0];
+	maskImage[index] = 0;
+
+	cv.imwrite(baseName+'_b&w.png',sourceImage);
+	cv.imwrite(baseName+'_mask.png',maskImage);
+	del sourceImage;
+
+	kernel = np.ones((5,5),np.uint8);
+	dilation = cv.dilate(maskImage,kernel,iterations = 1);
+	dilation = cv.dilate(dilation,kernel,iterations = 1);
+	cv.imwrite(baseName+'_dilation.png',dilation);
+	erosion = cv.erode(dilation,kernel,iterations = 1);
+	erosion = cv.erode(erosion,kernel,iterations = 1);
+	cv.imwrite(baseName+'_erosion.png',erosion);
+	
+
+	# erosion = cv.imread(r"C:\Users\kitrol\Desktop\2017SM01680_6_EVG_c3_lv_0_row_1_clo_1_erosion.png");
+	# shape = erosion.shape;
+	# resize = cv.resize(erosion, (int(shape[0]/10), int(shape[1]/10)), interpolation=cv.INTER_LANCZOS4);
+	# cv.imwrite(r'C:\Users\kitrol\Desktop\2017SM01680_6_EVG_c3_lv_0_row_1_clo_1'+'_resize.png',resize);
+
 
 if __name__ == '__main__':
     main(sys.argv)
