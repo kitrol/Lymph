@@ -5,38 +5,127 @@ import sys
 import cv2 as cv
 import numpy as np
 
+CommonKernelSize = (5,5);
+DeleteSizeThreshold = 10;
+SCALE = 1/10;
+WHITE_1 = 255;
+WHITE_3 = [255,255,255];
+BLACK_1 = 0;
+BLACK_3 = [0,0,0];
+SuspiciousColor = 120;
+
 def main(argv):
 	if len(argv) < 2:
 		usage="Usage: \n 1 Parameters are needed:\n image file. "
 		print(usage);
 		return False;
+	####  Prepare Work  ####
+	global CommonKernelSize,DeleteSizeThreshold,WHITE_1;
+	global WHITE_3,BLACK_1,BLACK_3,SCALE,SuspiciousColor;
 	fileName = argv[1]; 
 	sourceImage = cv.imread(fileName);
 	shape = sourceImage.shape;
 	baseName = fileName.split('.')[0];
 	maskImage = np.zeros((shape[0],shape[1]),dtype=np.uint8);
-	maskImage[::] = 255;
-	index = np.where(np.average(sourceImage,axis=2)<=100);
-	sourceImage[index] = [0,0,0];
-	maskImage[index] = 0;
+	maskImage[::] = WHITE_1;
+	####  Prepare Work  ####
 
-	cv.imwrite(baseName+'_b&w.png',sourceImage);
+	####  Mark for BLACK  ####
+	index = np.where(np.average(sourceImage,axis=2)<=100);
+	sourceImage[index] = WHITE_3;
+	maskImage[index] = BLACK_1;
+	####  Mark for BLACK  ####
+
+	# cv.imwrite(baseName+'_markblack.png',sourceImage);
 	cv.imwrite(baseName+'_mask.png',maskImage);
 	del sourceImage;
 
-	kernel = np.ones((5,5),np.uint8);
+	####  Reduce the noise Round 1 ####
+	kernel = np.ones(CommonKernelSize,np.uint8);
 	dilation = cv.dilate(maskImage,kernel,iterations = 1);
-	dilation = cv.dilate(dilation,kernel,iterations = 1);
-	cv.imwrite(baseName+'_dilation.png',dilation);
 	erosion = cv.erode(dilation,kernel,iterations = 1);
-	erosion = cv.erode(erosion,kernel,iterations = 1);
-	cv.imwrite(baseName+'_erosion.png',erosion);
+	# cv.imwrite(baseName+'_dilation.png',dilation);
+	# cv.imwrite(baseName+'_erosion.png',erosion);
+	####  Reduce the noise Round 1 ####
 	
+	####  Reduce the noise Round 2 ####
+	resize = cv.resize(erosion, (int(shape[0]*SCALE), int(shape[1]*SCALE)), interpolation=cv.INTER_LANCZOS4);
+	ret, resize = cv.threshold(resize,0,255,cv.THRESH_OTSU);
+	ret, binimage = cv.threshold(resize,0,255,cv.THRESH_BINARY_INV);
+	del dilation;
+	del erosion;
+	# cv.imwrite(baseName+'_INV_bin.png',binimage);
+		# image for processing should be WHITE regions with BLACK background
+		# nlabels: the numbers of all the regions;
+		# labelsMatrix: same size with input image filled with the label for the regions
+		# stats: profile for each region with deta like: [x0, y0, width, height, area]
+		# centroids: the center for each region
+	nlabels, labelsMatrix, stats, centroids = cv.connectedComponentsWithStats(binimage);
+	# first item in stats seems to be the background profile
+	for label in range(1,nlabels):
+		if stats[label][4] <= DeleteSizeThreshold:
+			index = np.where(labelsMatrix==label);
+			binimage[index] = BLACK_1;
+			resize[index] = WHITE_1;
+		# if stats[label][4] >= stats[label][2]*stats[label][3]/4:
+		# 	subImage = resize[stats[label][0]:stats[label][0]+stats[label][2],stats[label][1]:stats[label][1]+stats[label][3]];
+		# 	cv.imwrite(baseName+'_bin_%d.png'%(label),subImage);
+	# cv.imwrite(baseName+'_bin_1.png',binimage);
+	# cv.imwrite(baseName+'_bin_2.png',resize);
 
-	# erosion = cv.imread(r"C:\Users\kitrol\Desktop\2017SM01680_6_EVG_c3_lv_0_row_1_clo_1_erosion.png");
-	# shape = erosion.shape;
-	# resize = cv.resize(erosion, (int(shape[0]/10), int(shape[1]/10)), interpolation=cv.INTER_LANCZOS4);
-	# cv.imwrite(r'C:\Users\kitrol\Desktop\2017SM01680_6_EVG_c3_lv_0_row_1_clo_1'+'_resize.png',resize);
+	nlabels, labelsMatrix, stats, centroids = cv.connectedComponentsWithStats(binimage);
+	suspiciousLabels = [];
+	for label in range(1,nlabels):
+		if stats[label][4] >= stats[label][2]*stats[label][3]/3:
+			index = np.where(labelsMatrix==label);
+			resize[index] = SuspiciousColor;
+			if label not in suspiciousLabels:
+				suspiciousLabels.append(label);
+	cv.imwrite(baseName+'_suspicious.png',resize);
+	# for a suspicious region, find a bigger near region but not suspicious, if near enough, remove from suspicious labels
+	noSuspicious = [];
+	# print(suspiciousLabels);
+	print(labelsMatrix[440,55]);
+	print(labelsMatrix[446,60]);
+	def makeInRange(rangetuple,num):
+		if num < rangetuple[0]:
+			return rangetuple[0];
+		elif num >= rangetuple[1]:
+			return rangetuple[1]-1;
+		else:
+			return num;
+	# for label in suspiciousLabels:
+	# 	targetStats = stats[label];
+	# 	areaSize = targetStats[4]; 
+	# 	center = (targetStats[0]+int(targetStats[2]/2),targetStats[1]+int(targetStats[3]/2));
+	# 	radius = int(max((targetStats[2],targetStats[3]))/2+5);
+	# 	# cv.circle(resize,center, radius, 150, -1);
+	# 	isFind = False;
+	# 	index = np.where(labelsMatrix==label);
+	# 	for x in range(-radius,radius):
+	# 		for y in range(-radius,radius):
+	# 			# try to find a nearest unsuspicious region
+	# 			targe_x = makeInRange((0,resize.shape[0]),center[0]+x);
+	# 			targe_y = makeInRange((0,resize.shape[1]),center[1]+y);
+	# 			otherLabel = labelsMatrix[targe_x,targe_y];
+	# 			if (otherLabel != 0) and (otherLabel != label) and (otherLabel not in suspiciousLabels) :
+	# 				# print("areaSize is %d otherLabel %d otherSize %d"%(areaSize,otherLabel,stats[otherLabel][4]));and (areaSize <= stats[otherLabel][4]/2)
+	# 				resize[index] = BLACK_1;
+	# 				if label not in noSuspicious:
+	# 					noSuspicious.append(label);
+	# 				isFind = True;
+	# 				break;
+	# 		if isFind:
+	# 			break;
+	# 	if not isFind:
+	# 		resize[index] = WHITE_1;
+	# print(noSuspicious);
+	cv.imwrite(baseName+'_clear.png',resize);
+	for label in noSuspicious:
+		suspiciousLabels.remove(label);
+	####  Reduce the noise Round 2 ####
+
+
 
 
 if __name__ == '__main__':
