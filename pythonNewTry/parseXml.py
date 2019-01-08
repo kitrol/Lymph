@@ -63,7 +63,7 @@ def main(argv):
 	targetRects = readRegionsFromXml(xmlFileName);
 	slide = openslide.OpenSlide(svsFileName);
 	for rect in targetRects:
-		targetImage = slide.read_region((rect[0]-1400,rect[1]+1500),0, (rect[2],rect[3]),3);
+		targetImage = slide.read_region((rect[0],rect[1]),0, (rect[2],rect[3]),3);
 		path = os.path.join(outputFolderPath,svsBaseName+"_"+str(rect)+".png");
 		cv.imwrite(path,targetImage);
 	
