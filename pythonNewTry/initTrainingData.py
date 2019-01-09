@@ -8,10 +8,11 @@ import numpy as np
 VESSEL = [1,1,1];
 ERYTHROCYTE = [0,255,255];
 NEGATIVE = [0,0,255];
-RangeType=["Nine-Box",
-			"Sixteen-Box",
-			"Five-Sixteen-Box",
-			"Five-Sixteen-Box",];
+RangeType = 9;
+# ["Nine-Box",
+# 			"Sixteen-Box",
+# 			"Five-Sixteen-Box",
+# 			"Five-Sixteen-Box",];
 def getDataNineBox(sourceImg,y,x):
 	shape = sourceImg.shape;
 	if (y-1)<0 or (y+1)>shape[0]-1 or (x-1)<0 or (x+1)>shape[1]-1:
@@ -32,27 +33,26 @@ def getDataFortynineBox(sourceImg,y,x):
 		return False,None;
 	else:
 		return True,sourceImg[y-3:y+4,x-3:x+4].reshape(-1);
-def main(argv):
-	if len(argv) < 2:
-		usage="Usage: \n 1 Parameters are needed:\n image file. "
-		print(usage);
-		return False;
-	fileName = argv[1];
-	baseName = fileName.split('.')[0];
-	markedImage = cv.imread(fileName);
+
+def readDataFromFile(trainImageName):
+	global VESSEL,ERYTHROCYTE,NEGATIVE,RangeType;
+	baseName = trainImageName.split('.')[0];
+	markedImage = cv.imread(trainImageName);
 	originalName = baseName.replace("_train","")+".png";
 	originalFile = cv.imread(originalName);
 	vesselData = [];
 	negativeData = [];
 	erythrocyteData = [];
-	# vesselImg = np.zeros(markedImage.shape,dtype=np.uint8);
-	# erythrocyteImg = np.zeros(markedImage.shape,dtype=np.uint8);
-	# negativeImg = np.zeros(markedImage.shape,dtype=np.uint8);
-	# vesselImg[::]=erythrocyteImg[::]=negativeImg[::]=255;
 	for y in range(0,markedImage.shape[0]):
 		for x in range(0,markedImage.shape[1]):
-			# isGet,data = getDataTwentyfiveBox(originalFile,y,x);
-			isGet,data = getDataFortynineBox(originalFile,y,x);
+			isGet=False;
+			data=None;
+			if RangeType == 9:
+				isGet,data = getDataNineBox(originalFile,y,x);
+			elif RangeType == 25:
+				isGet,data = getDataTwentyfiveBox(originalFile,y,x);
+			elif RangeType == 49:
+				isGet,data = getDataFortynineBox(originalFile,y,x);
 			if isGet == False:
 				continue;
 			color = markedImage[y,x];
@@ -63,36 +63,50 @@ def main(argv):
 				erythrocyteData.append(data);
 			elif (color == np.array(NEGATIVE)).all():
 				negativeData.append(data);
-
-	print(len(vesselData));
-	print(len(negativeData));
-	print(len(erythrocyteData));
-	# cv.imwrite(baseName+"vesselImg.png",vesselImg);
-	trainCsv = baseName+"train.csv";
+	# print(len(vesselData));
+	# print(len(negativeData));
+	# print(len(erythrocyteData));
+	return vesselData,negativeData,erythrocyteData;
+def writeToFile(fileHandle,data,dataType):
+	for index in range(0,len(data)):
+		string = '1,'; # add bias data
+		for item in data[index]:
+			string+=str(item)+",";
+		string+="%d\n"%(dataType);
+		fileHandle.write(string);
+	
+def main(argv):
+	if len(argv) < 2:
+		usage="Usage: \n 1 Parameters are needed:\n Trian File Folder with Original Images. "
+		print(usage);
+		return False;
+	global RangeType;
+	trainFolder = argv[1];
+	vessel = [];
+	negative = [];
+	erythrocyte = [];
+	trainCsv = os.path.join(trainFolder,"train %d.csv"%(RangeType));
 	if os.path.isfile(trainCsv):	
 		os.remove(trainCsv);
 	file = open(trainCsv, "w+");
-	for index in range(0,len(vesselData)):
-		string = '1,';
-		for item in vesselData[index]:
-			string+=str(item)+",";
-		string+="1\n";
-		file.write(string);
-
-	for index in range(0,len(negativeData)):
-		string = '1,';
-		for item in negativeData[index]:
-			string+=str(item)+",";
-		string+="0\n";
-		file.write(string);
-
-	for index in range(0,len(erythrocyteData)):
-		string = '1,';
-		for item in erythrocyteData[index]:
-			string+=str(item)+",";
-		string+="0\n";
-		file.write(string);
+	if os.path.exists(trainFolder):
+		for fileName in os.listdir(trainFolder):
+			trianFileName = os.path.join(trainFolder,fileName);
+			if os.path.isfile(trianFileName) and trianFileName.find("_train") > 0 and os.path.isfile(trianFileName.replace("_train","")):
+				print("Processing: "+fileName+" ");
+				vessel_,negative_,erythrocyte_ = readDataFromFile(trianFileName);
+				# originalFile = trianFileName.replace("_train","");
+				# print(originalFile);
+				vessel.extend(vessel_);
+				negative.extend(negative_);
+				erythrocyte.extend(erythrocyte_);
+				writeToFile(file,vessel_,dataType=1);
+				writeToFile(file,negative_,dataType=0);
+				writeToFile(file,erythrocyte_,dataType=0);
 	file.close();
+	print(len(vessel));
+	print(len(negative));
+	print(len(erythrocyte));
 
 if __name__ == '__main__':
     main(sys.argv)

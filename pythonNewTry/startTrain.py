@@ -31,7 +31,7 @@ def readTrainFile(fileName):
 
 def main(argv):
 	if len(argv) < 2:
-		usage="Usage: \n 1 Parameters are needed:\n train.txt file needed "
+		usage="Usage: \n 1 Parameters are needed:\n train **.csv file needed "
 		print(usage);
 		return False;
 	randomSeed = 123123;
