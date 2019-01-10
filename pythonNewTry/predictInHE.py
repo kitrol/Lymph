@@ -1,15 +1,43 @@
 #!/usr/bin/python
 # -*- coding: UTF-8 -*-
 # Created By Liang Jun Copyright owned
-import sys
-import os
+import sys,os,re,math
 import cv2 as cv
-import re
 import numpy as np
 from sklearn.neural_network import MLPClassifier
-from sklearn import svm
-from sklearn.metrics import confusion_matrix, precision_recall_fscore_support
-from sklearn.model_selection import train_test_split
+
+RangeType = 9;
+
+
+def checkImagePiece(folderName,imageName,totalRows,totalColumns):
+	matchObj = re.match(r'.*_c(.*)_lv_(.*)_row_(.*)_clo_(.*).png',imageName,re.I);
+	if matchObj:
+		currentRow = int(matchObj.group(3));
+		currentCol = int(matchObj.group(4));
+		print("currentRow %d currentCol %d "%(currentRow,currentCol));
+		image = cv.imread(os.join(folderName,imageName));
+		shape = iamge.shape;
+		global RangeType;
+		offset = (math.sqrt(RangeType)-1);
+		start_X += 0;
+		start_y += 0;
+		end_X = shape[1]-1;
+		end_Y = shape[0]-1;
+		left_image = None;
+		right_image = None;
+		up_image = None;
+		down_image = None;
+		if currentCol == 0:
+			start_X += offset;
+		if currentCol == totalColumns-1:
+			end_X -= offset; 
+		if currentRow == 0:
+			start_y += offset;
+		if currentRow == totalRows-1:
+			end_Y -= offset;
+	else:
+		print("No Match!!");
+
 
 def main(argv):
 	if len(argv) < 2:
@@ -22,39 +50,21 @@ def main(argv):
 	if os.path.isfile(txtFileName):
 		descFile = open(txtFileName, "r");
 		descString = descFile.read();
-			descList = descString.split("\n");
-			for line in descList:
-				if len(line)>2:
-					item = line.split(":");
-					descDict[item[0]] = int(item[1]);
+		descList = descString.split("\n");
+		for line in descList:
+			if len(line)>2:
+				item = line.split(":");
+				descDict[item[0]] = int(item[1]);
 	else:
 		print("Can Not Open desc.txt File!");
-	print(descDict);		
+		return False;
+	# {'width': 72000, 'height': 33669, 'pieceSize': 10000, 'rows': 4, 'columns': 8}
+	print(descDict);
 
-	
-
-	
-	# testStr = r'2017SM01680_6_HE_c3_lv_0_row_15_clo_205.png';
-	# # '(.*) are (.*?) .*'
-	# # matchObj = re.match(r'_c(.*)_lv_(.*)_row_(.*)_clo_(.*).*',testStr,re.I);
-	# matchObj = re.match(r'.*_c(.*)_lv_(.*)_row_(.*)_clo_(.*).png',testStr,re.I);
-	# if matchObj:
-	# 	descDict['channel'] = int(matchObj.group(1));
-	# 	descDict['level'] = int(matchObj.group(2));
-	# 	descDict['row_index'] = int(matchObj.group(3));
-	# 	descDict['column_index'] = int(matchObj.group(4));
-	# 	# print(matchObj.group(1));
-	# 	# print(matchObj.group(2));
-	# 	# print(matchObj.group(3));
-	# 	# print(matchObj.group(4));
-	# 	print(descDict);
-	# else:
-	# 	print("No Match");
 	if os.path.exists(imageFolder):
 		for fileName in os.listdir(imageFolder):
 			if fileName.find(".txt") < 0: # not the desc.txt file, image file
-				print(fileName);
-				
+				checkImagePiece(imageFolder,fileName,descDict['rows'],descDict['columns']);
 
 if __name__ == '__main__':
     main(sys.argv)
