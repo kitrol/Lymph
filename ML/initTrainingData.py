@@ -1,38 +1,25 @@
 #!/usr/bin/python
 # -*- coding: UTF-8 -*-
 # Created By Liang Jun Copyright owned
-import sys
-import os
+import sys,os,math 
 import cv2 as cv
 import numpy as np
 VESSEL = [1,1,1];
-ERYTHROCYTE = [0,255,255];
+ERYTHROCYTE = [0,255,0];
 NEGATIVE = [0,0,255];
-RangeType = 9;
+RangeType = 81; #25,49,81,121
 # ["Nine-Box",
 # 			"Sixteen-Box",
 # 			"Five-Sixteen-Box",
 # 			"Five-Sixteen-Box",];
-def getDataNineBox(sourceImg,y,x):
+def getDataSquare(sourceImg,y,x):
+	global RangeType;
+	offset = int((math.sqrt(RangeType)-1)/2);
 	shape = sourceImg.shape;
-	if (y-1)<0 or (y+1)>shape[0]-1 or (x-1)<0 or (x+1)>shape[1]-1:
+	if (y-offset)<0 or (y+offset)>shape[0]-1 or (x-offset)<0 or (x+offset)>shape[1]-1:
 		return False,None;
 	else:
-		return True,sourceImg[y-1:y+2,x-1:x+2];
-
-def getDataTwentyfiveBox(sourceImg,y,x):
-	shape = sourceImg.shape;
-	if (y-2)<0 or (y+2)>shape[0]-1 or (x-2)<0 or (x+2)>shape[1]-1:
-		return False,None;
-	else:
-		return True,sourceImg[y-2:y+3,x-2:x+3].reshape(-1);
-
-def getDataFortynineBox(sourceImg,y,x):
-	shape = sourceImg.shape;
-	if (y-3)<0 or (y+3)>shape[0]-1 or (x-3)<0 or (x+3)>shape[1]-1:
-		return False,None;
-	else:
-		return True,sourceImg[y-3:y+4,x-3:x+4].reshape(-1);
+		return True,sourceImg[y-offset:y+offset+1,x-offset:x+offset+1].reshape(-1);
 
 def readDataFromFile(trainImageName):
 	global VESSEL,ERYTHROCYTE,NEGATIVE,RangeType;
@@ -45,14 +32,7 @@ def readDataFromFile(trainImageName):
 	erythrocyteData = [];
 	for y in range(0,markedImage.shape[0]):
 		for x in range(0,markedImage.shape[1]):
-			isGet=False;
-			data=None;
-			if RangeType == 9:
-				isGet,data = getDataNineBox(originalFile,y,x);
-			elif RangeType == 25:
-				isGet,data = getDataTwentyfiveBox(originalFile,y,x);
-			elif RangeType == 49:
-				isGet,data = getDataFortynineBox(originalFile,y,x);
+			isGet,data = getDataSquare(originalFile,y,x);
 			if isGet == False:
 				continue;
 			color = markedImage[y,x];
@@ -74,6 +54,7 @@ def writeToFile(fileHandle,data,dataType):
 			string+=str(item)+",";
 		string+="%d\n"%(dataType);
 		fileHandle.write(string);
+	fileHandle.flush();
 	
 def main(argv):
 	if len(argv) < 2:
@@ -85,7 +66,7 @@ def main(argv):
 	vessel = [];
 	negative = [];
 	erythrocyte = [];
-	trainCsv = os.path.join(trainFolder,"train %d.csv"%(RangeType));
+	trainCsv = os.path.join(trainFolder,"train_%d.csv"%(RangeType));
 	if os.path.isfile(trainCsv):	
 		os.remove(trainCsv);
 	file = open(trainCsv, "w+");
@@ -102,7 +83,7 @@ def main(argv):
 				erythrocyte.extend(erythrocyte_);
 				writeToFile(file,vessel_,dataType=1);
 				writeToFile(file,negative_,dataType=0);
-				writeToFile(file,erythrocyte_,dataType=0);
+				writeToFile(file,erythrocyte_,dataType=2);
 	file.close();
 	print(len(vessel));
 	print(len(negative));
