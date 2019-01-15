@@ -31,6 +31,7 @@ def main(argv):
 	####  Prepare Work  ####
 
 	####  Mark for BLACK  ####
+	# axis=3 means 3 dimensions 0,1,2
 	index = np.where(np.average(sourceImage,axis=2)<=100);
 	sourceImage[index] = WHITE_3;
 	maskImage[index] = BLACK_1;

@@ -10,9 +10,8 @@ import sklearn.externals as sk_externals
 
 RangeType = 0; # will be changed in main func
 DoneProcessCounter = 0;
-ImageOffset = 20;
 
-def predictWithRange(packedImage,detectRange,rangeOffset,processIndex,modelFileName,counter,posArray,processLock):
+def predictWithRange(packedImage,detectRange,rangeType,processIndex,modelFileName,counter,posArray,processLock):
 	# print("processIndex  %d "%(processIndex));
 	# print(packedImage[100,100]);
 	clf = None;
@@ -22,30 +21,33 @@ def predictWithRange(packedImage,detectRange,rangeOffset,processIndex,modelFileN
 	end_Y = detectRange['end_Y'];
 	start_X = detectRange['start_X'];
 	end_X = detectRange['end_X'];
-
-	for y in range(start_Y,end_Y):
-		for x in range(start_X,end_X):
-			temp = packedImage[(y-rangeOffset):(y+rangeOffset+1),(x-rangeOffset):(x+rangeOffset+1)];
-			targetData = np.append([1], packedImage[(y-rangeOffset):(y+rangeOffset+1),(x-rangeOffset):(x+rangeOffset+1)].reshape(-1) );
-			y_pred = clf.predict(targetData.reshape(1,-1));
-			if (y-start_Y)>0 and (y-start_Y)%1000 == 0:
-				print("ID: %d current process row %d"%(processIndex,y));
-			if y_pred != 0:
-				processLock.acquire();
-				pos = [y,x,y_pred];
-				posArray.put(pos);
-				processLock.release();
+	shape = packedImage.shape;
+	stepSize = int(math.ceil(rangeType-1));
+	for y in range(start_Y,end_Y,stepSize):
+		for x in range(start_X,end_X,stepSize):
+			if (y+rangeType)<=shape[0] and (x+rangeType)<=shape[1]:
+				temp = packedImage[y:y+rangeType,x:x+rangeType].reshape(-1);
+				targetData = np.append([1], temp).reshape(1,-1);
+				y_pred = clf.predict(targetData.reshape(1,-1));
+				# if (y-start_Y)>0 and (y-start_Y)%1000 == 0:
+				# 	print("ID: %d current process row %d"%(processIndex,y));
+				if y_pred != 0:
+					processLock.acquire();
+					pos = [y,x,y_pred];
+					posArray.put(pos);
+					processLock.release();
 
 	processLock.acquire();
 	time.sleep(0.5);
 	counter.value += 1;
+	print("Process %d is Finished."%(processIndex));
 	processLock.release();
 
 def onGetItemPos(sourceImage,data):
 	if data[2] == 1:
-		sourceImage[data[0],data[1]]=[0,0,255];
-	elif data[2] == 2:
 		sourceImage[data[0],data[1]]=[0,255,0];
+	elif data[2] == 2:
+		sourceImage[data[0],data[1]]=[0,0,255];
 	
 
 def checkImagePiece(model,modelFileName,imageName):
@@ -53,25 +55,24 @@ def checkImagePiece(model,modelFileName,imageName):
 	shape = imageItem.shape;
 	import multiprocessing
 	global RangeType;
-	rangeOffset = int((math.sqrt(RangeType)-1)/2);
 	processCnt = multiprocessing.cpu_count()-1;
 	lock = multiprocessing.Lock();
 	positions = multiprocessing.Queue();
 	processCounter = multiprocessing.Value("i",0);
-	start_X = rangeOffset;
-	start_Y = rangeOffset;
-	end_X = shape[1]-rangeOffset;
-	end_Y = shape[0]-rangeOffset;
-	detectRange = {'start_X':start_X,'start_Y':start_Y,'end_X':end_X,'end_Y':end_Y};
-	y_offset = int(math.floor( (shape[0]-rangeOffset)/processCnt));
+	start_X = 0;
+	start_Y = 0;
+	end_X = shape[1];
+	end_Y = shape[0];
+	detectRange = {'start_X':0,'start_Y':0,'end_X':shape[1],'end_Y':shape[0]};
+	y_offset = int(math.floor( (shape[0]-RangeType)/processCnt));
 	process = [];
 	for index in range(0,processCnt):
-		detectRange['start_Y'] = index*y_offset+rangeOffset;
+		detectRange['start_Y'] = index*y_offset;
 		if (index+1)==processCnt:
-			detectRange['end_Y'] = shape[0]-rangeOffset;
+			detectRange['end_Y'] = shape[0];
 		else:
-			detectRange['end_Y'] = (index+1)*y_offset+rangeOffset;
-		p = multiprocessing.Process(target=predictWithRange, args=(imageItem,detectRange,rangeOffset,index,modelFileName,processCounter,positions,lock));
+			detectRange['end_Y'] = (index+1)*y_offset;
+		p = multiprocessing.Process(target=predictWithRange, args=(imageItem,detectRange,RangeType,index,modelFileName,processCounter,positions,lock));
 		process.append(p);
 		p.start();
 
@@ -82,7 +83,7 @@ def checkImagePiece(model,modelFileName,imageName):
 			data = positions.get();
 			# print('Predicet Vessel Pos '+str(pos));
 			onGetItemPos(imageItem,data);
-	print("Process Finish");
+	print("%s Process is Finished."%(imageName));
 	for x in process:
 		if x.is_alive():
 			x.terminate();
@@ -93,7 +94,7 @@ def checkImagePiece(model,modelFileName,imageName):
 
 
 def main(argv):
-	if len(argv) < 2:
+	if len(argv) < 3:
 		usage="Usage: \n 2 Parameters are needed:\n 1.Trained Model File Path 2.HE fils folder full path "
 		print(usage);
 		return False;
@@ -108,9 +109,15 @@ def main(argv):
 		print("Read Model Failed!!");
 		return False;
 
-	testImageName = argv[2];
-	# print("get filename:",os.path.basename(testImageName));
-	checkImagePiece(clf,modelFileName,testImageName);
+	# testImageName = argv[2];
+	folderOrFile = argv[2];
+	if os.path.isfile(folderOrFile): # parameter2 is a image file
+		checkImagePiece(clf,modelFileName,os.path.join(folderOrFile,folderOrFile));
+	else: # parameter2 is a folder of image
+		if os.path.exists(folderOrFile):
+			for fileName in os.listdir(folderOrFile):
+				if fileName.find(".png") >= 0: # not the desc.txt file, image file
+					checkImagePiece(clf,modelFileName,os.path.join(folderOrFile,fileName));				
 	print("done");
 
 if __name__ == '__main__':

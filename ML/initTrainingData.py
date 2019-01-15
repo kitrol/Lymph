@@ -7,19 +7,18 @@ import numpy as np
 VESSEL = [1,1,1];
 ERYTHROCYTE = [0,255,0];
 NEGATIVE = [0,0,255];
-RangeType = 81; #25,49,81,121
+RangeType = 3; #5,7,9,11,13,15,21
 # ["Nine-Box",
 # 			"Sixteen-Box",
 # 			"Five-Sixteen-Box",
 # 			"Five-Sixteen-Box",];
 def getDataSquare(sourceImg,y,x):
 	global RangeType;
-	offset = int((math.sqrt(RangeType)-1)/2);
 	shape = sourceImg.shape;
-	if (y-offset)<0 or (y+offset)>shape[0]-1 or (x-offset)<0 or (x+offset)>shape[1]-1:
+	if (y+RangeType)>shape[0] or (x+RangeType)>shape[1]:
 		return False,None;
 	else:
-		return True,sourceImg[y-offset:y+offset+1,x-offset:x+offset+1].reshape(-1);
+		return True,sourceImg[y:y+RangeType,x:x+RangeType].reshape(-1);
 
 def readDataFromFile(trainImageName):
 	global VESSEL,ERYTHROCYTE,NEGATIVE,RangeType;
@@ -30,14 +29,14 @@ def readDataFromFile(trainImageName):
 	vesselData = [];
 	negativeData = [];
 	erythrocyteData = [];
-	for y in range(0,markedImage.shape[0]):
-		for x in range(0,markedImage.shape[1]):
+	for y in range(0,markedImage.shape[0],RangeType-1):
+		for x in range(0,markedImage.shape[1],RangeType-1):
 			isGet,data = getDataSquare(originalFile,y,x);
 			if isGet == False:
 				continue;
 			color = markedImage[y,x];
 			# originalColor = originalFile[y,x];
-			if (color == np.array(VESSEL)).all():
+			if (color <= np.array(VESSEL)).all():
 				vesselData.append(data);	
 			elif (color == np.array(ERYTHROCYTE)).all():
 				erythrocyteData.append(data);
@@ -49,6 +48,8 @@ def readDataFromFile(trainImageName):
 	return vesselData,negativeData,erythrocyteData;
 def writeToFile(fileHandle,data,dataType):
 	for index in range(0,len(data)):
+		if index == 0 :
+			print();
 		string = '1,'; # add bias data
 		for item in data[index]:
 			string+=str(item)+",";

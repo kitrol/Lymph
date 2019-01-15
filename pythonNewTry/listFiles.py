@@ -5,7 +5,23 @@ import sys
 import os
 import shutil
 
-def main(argv):
+def changeNamesInFolder(folderName):
+	if os.path.exists(folderName):
+		for f in os.listdir(folderName):
+			if f.find(r'- 副本') >= 0 :
+				newName = f.replace(r' - 副本','_train');
+				print(newName);
+				shutil.move(os.path.join(folderName,f), os.path.join(folderName,newName));
+def changeNamesWithFolder(folderName):
+	folder = os.path.basename(folderName);
+	if os.path.exists(folderName):
+		for f in os.listdir(folderName):
+			if f.find(r'.png') >= 0 :
+				newName = folder+"_"+f;
+				print(newName);
+				shutil.move(os.path.join(folderName,f), os.path.join(folderName,newName));
+
+def relistFiles(argv):
 	subFolders = argv[1:-1];
 	outputFolder = argv[-1];
 	if not os.path.exists(outputFolder):
@@ -25,6 +41,11 @@ def main(argv):
 						newFullPath = os.path.join(outputFolder,newFileName);
 						shutil.move(filePath,newFullPath);
 						FileCounter += 1;
+def main(argv):
+	# relistFiles(argv);
+	# changeNamesInFolder(argv[1]);
+	changeNamesWithFolder(argv[1]);
+
 
 if __name__ == '__main__':
     main(sys.argv)
